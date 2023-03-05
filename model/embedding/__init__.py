@@ -3,7 +3,7 @@ from linear import LinearEmbedding
 from repeat import RepeatEmbedding
 
 
-def get_embedding(config):
+def init_embedding(config):
     methods = ['linear', 'identity', 'repeat']
     if config['method'] == 'linear':
         return LinearEmbedding(**config['kwargs'])
