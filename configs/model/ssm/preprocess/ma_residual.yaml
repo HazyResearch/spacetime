@@ -1,0 +1,5 @@
+method: ma_residual
+kwargs:
+  min_avg_window: 4
+  max_avg_window: 720
+  

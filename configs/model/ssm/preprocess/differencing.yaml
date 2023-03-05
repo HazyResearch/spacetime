@@ -1,0 +1,4 @@
+method: differencing
+kwargs:
+  max_diff_order: 4
+  

@@ -1,0 +1,13 @@
+method: mlp
+kwargs:
+  input_dim: 128
+  output_dim: 128
+  activation: gelu
+  dropout: 0.2
+  layernorm: false
+  n_layers: 1
+  n_activations: 1
+  pre_activation: true
+  input_shape: bld
+  skip_connection: true
+  average_pool: null

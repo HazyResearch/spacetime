@@ -1,0 +1,6 @@
+method: residual
+kwargs:
+  max_diff_order: 4
+  min_avg_window: 4
+  max_avg_window: 720
+  
