@@ -6,7 +6,7 @@ from einops import rearrange, repeat
 from model.components import OurModule
 
 
-class Kernel(OurModule):
+class SSM(OurModule):
     def __init__(self, 
                  model_dim: int, 
                  n_kernels: int,  # Number of kernels / scales
@@ -66,7 +66,7 @@ class Kernel(OurModule):
     def get_kernel(self):
         raise NotImplementedError
         
-    def forward(self, u: torch.tensor, u_horizon: torch.tensor=None):
+    def forward(self, u):
         u = rearrange(u, 'b l d -> b d l')  # Assume u is B x L x D
         # Repeat kernels across heads
         k = self.get_kernel(u) if self.kernel_weights is None else self.k
@@ -86,5 +86,5 @@ class IdentityKernel(Kernel):
     def init_weights(self):
         self.register('kernel', None, trainable=False)
         
-    def forward(self, u, u_horizon=None):
+    def forward(self, u):
         return u

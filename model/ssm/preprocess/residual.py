@@ -1,10 +1,10 @@
 import torch
 import torch.nn.functional as F
-from model.kernel.base import Kernel
-from model.kernel.preprocess.differencing import get_pascal
+from model.ssm.base import SSM
+from model.ssm.preprocess.differencing import get_pascal
 
 
-class ResidualKernel(Kernel):
+class ResidualSSM(SSM):
     """
     Computes both order-N differencing and moving average residuals over input sequence
     """
@@ -48,11 +48,12 @@ class ResidualKernel(Kernel):
         - Assume u is shape B x D x L
         """
         b, d, l = u.shape
+        max_window = min(self.max_avg_window, l)
         moving_avg = (1. / torch.clamp(torch.round(self.ma_window), 
                                        min=self.min_avg_window, 
-                                       max=self.max_avg_window).T)
+                                       max=max_window).T)
         kernel = F.pad(self.kernel, (0, l - self.kernel_dim, 0, 0), 'constant', 0)
-        kernel[self.max_diff_order:self.max_diff_order + self.n_ma_kernels, :self.max_avg_window] -= moving_avg
+        kernel[self.max_diff_order:self.max_diff_order + self.n_ma_kernels, :max_window] -= moving_avg
         return kernel
     
     def forward(self, u):

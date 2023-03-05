@@ -1,9 +1,9 @@
 import torch
 import torch.nn.functional as F
-from model.kernel.base import Kernel
+from model.ssm.base import SSM
 
 
-class DifferencingKernel(Kernel):
+class DifferencingSSM(SSM):
     """
     Computes order-N differencing over input sequence
     """

@@ -1,9 +1,9 @@
 import torch
 import torch.nn.functional as F
-from model.kernel.base import Kernel
+from model.ssm.base import SSM
 
 
-class MovingAvgResidualKernel(Kernel):
+class MovingAvgResidualSSM(SSM):
     """
     Computes moving average residuals over input sequence
     """
@@ -38,7 +38,8 @@ class MovingAvgResidualKernel(Kernel):
         b, d, l = u.shape
         # Set kernel values s.t. convolution computes residuals
         # from moving average, i.e., y[t] - mean(y[t:t - m])
+        max_window = min(self.max_avg_window, l)
         kernel = self.kernel - (1. / torch.clamp(torch.round(self.ma_window), 
                                                  min=self.min_avg_window, 
-                                                 max=self.kernel_dim).T)
+                                                 max=max_window).T)
         return F.pad(self.kernel, (0, l-self.kernel_dim, 0, 0), 'constant', 0)

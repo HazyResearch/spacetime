@@ -3,16 +3,17 @@ import opt_einsum as oe
 from einops import repeat, rearrange
 
 from model.functional.krylov import krylov
-from model.kernel.base import Kernel
+from model.ssm.base import SSM
 
 
-class CompanionKernel(Kernel):
+class CompanionSSM(SSM):
     """
     Open-loop implementation of Companion SSM:
     -> y_t = C \sum_{i = 0}^{k - 1 - i} A^k B u_i
        where A is companion matrix
     """
-    def __init__(self, **kwargs):
+    def __init__(self, norm_a_order, **kwargs):
+        self.norm_a_order = norm_a_order
         kwargs['kernel_repeat'] = 1
         kwargs['kernel_weights'] = None
         kwargs['kernel_train'] = True
@@ -26,9 +27,8 @@ class CompanionKernel(Kernel):
         elif kernel_init == 'xavier':
             # Xavier-ish initialization
             stdv = 1. / math.sqrt(self.kernel_dim)
-            # Initialize same weights across input_dims
-            kernel = torch.FloatTensor(
-                self.n_kernels, self.kernel_dim).uniform_(-stdv, stdv)
+            kernel = torch.FloatTensor(self.n_kernels, 
+                                       self.kernel_dim).uniform_(-stdv, stdv)
         else:
             raise NotImplementedError
         return kernel
@@ -77,7 +77,8 @@ class CompanionKernel(Kernel):
     def get_kernel(self, u, c=None, l=None):
         l = u.shape[-1] if l is None else l
         c = self.c if c is None else c
-        a = self.norm(self.a, ord=1)
+        a = (self.norm(self.a, ord=self.norm_a_order) 
+             if self.norm_a_order > 0 else self.a)
         f = self.matrix_power(l, c, self.b, a).to(u.device)
         return f
     
