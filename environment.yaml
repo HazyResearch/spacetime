@@ -1,0 +1,21 @@
+name: spacetime
+channels:
+  - conda-forge
+  - pytorch
+  - huggingface
+dependencies:
+  - python
+  - pip
+  - jupyter
+  - jupyterlab
+  - pytorch
+  - transformers
+  - pandas
+  - numpy
+  - matplotlib
+  - omegaconf
+  - einops
+  - opt_einsum
+  - tqdm
+  - rich
+  - wandb
