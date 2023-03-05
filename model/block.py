@@ -1,93 +1,70 @@
 """
-SpaceTime blocks, backbone behind the architecture
+SpaceTime blocks, stacked into encoder and decoder of architecture
 """
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from model.components import OurModule
 from model.mlp import init_mlp
-from model.module import OurModule
-from model.attention import HedgehogCrossAttention, HedgehogSelfAttention
+from model.ssm import init_ssm
+from model.ssm.preprocess import init_preprocess_ssm as init_pre
 
 
 class Block(OurModule):
+    """
+    Standard encoder block
+    """
     def __init__(self, 
                  input_dim: int,
-                 conv_attn: str, 
-                 conv_pool: str=None,
-                 conv_config: str=None,
-                 mlp_config: str=None,
-                 conv: dict=None,
-                 mlp: dict=None):
+                 pre_config: str=None,
+                 ssm_config: str=None,
+                 mlp_config: str=None):
         super().__init__()
         self.input_dim = input_dim
-        self.conv_attn = conv_attn
-        self.conv_pool = conv_pool  # Whether to pool conv output
         
-        self.conv = self.init_conv(conv_attn, conv)
-        self.mlp  = init_mlp(mlp)
-        
-    def init_conv(self, conv_attn, conv):
-        # Pooling
-        if self.conv_pool == 'cls':  # As in BERT, summarize sequence into a "token" embedding
-            cls = torch.randn(1, 1, self.input_dim)
-            self.register("cls", cls, trainable=True, lr=None, wd=None)
-            self.pool = lambda x: x[:, -1:, :]  # cls token is last
-        elif self.conv_pool == 'mean':  # Alternatively do length-wise avg pooling
-            self.cls = None
-            self.pool = lambda x: x.mean(dim=1, keepdim=True)
-        else:
-            self.cls = None
-            self.pool = lambda x: x
+        self.pre = init_pre(pre_config)
+        self.ssm = init_ssm(ssm_config)
+        self.mlp = init_mlp(mlp_config)
             
-        if conv_attn == 'identity' or conv is None:
-            return nn.Identity()
-        elif conv_attn == 'cross':
-            return HedgehogCrossAttention(**conv)
-        elif conv_attn == 'self':
-            return HedgehogSelfAttention(**conv)
-        else:
-            raise NotImplementedError(f'conv_attn {conv_attn} not implemented')
-            
-    def forward(self, x_tuple):
+    def forward(self, x):
         """
-        Input shape: tuple of B x L x D
-        Output shape:
-        - if self.conv_pool == 'cls' or 'mean', outputs B x 1 x D
-        - else, outputs B x L x D
+        Input shape: B x L x D
         """
-        b, l, d = x_tuple[-1].shape
-
-        if self.conv_attn == 'self' and self.conv_pool == 'cls':
-            x = torch.cat([x_tuple[0], self.cls.expand(b, -1, -1)], dim=1)
-            x = self.conv((x,))
-            
-        elif self.conv_attn == 'self':  # and self.conv_pool == 'mean':
-            x = x_tuple[0]
-            # print(f'(block) --> x.shape:', x.shape)
-            x = self.conv((x,))
-            
-        elif self.conv_attn == 'cross' and self.conv_pool == 'cls':
-            x = x_tuple[0]
-            x = self.conv((self.cls.expand(b, -1, -1), x, x))
-            
-        elif self.conv_attn == 'cross':  # and self.conv_pool == 'mean':
-            x = self.conv(x_tuple)
-            
-        else:  # identity
-            x = self.conv(x_tuple[0])
-            
-        x = self.pool(x)
+        x = self.pre(x)
+        x = self.ssm(x)
         x = self.mlp(x)
-        return (x,)  # cross-attention input flexibility
+        return x
     
-
-class Backbone(nn.Module):
+    
+class ClosedLoopBlock(Block):
+    """
+    Block with a closed-loop SSM. 
+    
+    In SpaceTime, we only consider using one ClosedLoopBlock 
+    as the last-layer in a single-layer decoder. 
+    
+    However, other architectures can also be explored, e.g., 
+    having more "open" blocks on top of the ClosedLoopBlock 
+    in a multi-layer decoder.
+    """
+    def __init__(**kwargs):
+        super().__init__(**kwargs)
+        
+    def forward(self, x):
+        x = self.pre(x)
+        # Computes layer outputs and next-time-step layer inputs
+        y, u = self.ssm(x)  
+        # Return both layer outputs and prediction + "ground-truth"
+        # for next-time-step layer inputs
+        return y, (u, x)    
+    
+    
+class Encoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
         self.blocks = self.init_blocks(config)
-        self.input_pad = config['input_pad']
         
     def init_blocks(self, config):
         blocks = []
@@ -95,17 +72,31 @@ class Backbone(nn.Module):
             blocks.append(Block(**block))
         return nn.Sequential(*blocks)
     
-    def forward(self, x_tuple):
-        p3d = (0, 0, self.input_pad, 0, 0, 0)
-        x_tuple = [F.pad(x, p3d, mode='constant', value=0) for x in x_tuple]
-        # print('(backbone) --> len(x_tuple):', len(x_tuple))
-        return self.blocks(x_tuple)
+    def forward(self, x):
+        return self.blocks(x)
     
-class Encoder(Backbone):
+    
+class Decoder(nn.Module):
+    """
+    In SpaceTime, we only consider using one ClosedLoopBlock 
+    as the last-layer in a single-layer decoder. 
+    
+    However, other architectures can also be explored, e.g., 
+    having more "open" blocks on top of the ClosedLoopBlock 
+    in a multi-layer decoder.
+    
+    In future, can refactor this class to be more general 
+    and support multiple layers. (p easy, just weirdness with
+    nn.Sequential and multiple outputs)
+    """
     def __init__(self, config):
-        super().__init__(config=config)
+        super().__init__()
+        self.config = config
+        self.blocks = self.init_blocks(config)
         
-class Decoder(Backbone):
-    def __init__(self, config):
-        super().__init__(config=config) 
+    def init_blocks(self, config):
+        self.blocks = ClosedLoopBlock(**config['blocks'][0])
+    
+    def forward(self, x):
+        return self.blocks(x)
  
