@@ -1,10 +1,10 @@
 from .mean import MeanTransform, MeanInputTransform
-from .standardisze import StandardizeTransform
+from .standardize import StandardizeTransform
 from .affine import InverseAffineTransform
 from .last import LastAffineTransform
 
 
-def get_data_transforms(lag):
+def get_data_transforms(method, lag):
     supported_methods = ['mean', 'mean_input', 'last', 
                          'standardize', 'none']
     if method == 'mean':
@@ -23,6 +23,6 @@ def get_data_transforms(lag):
         input_transform = lambda x: x
         output_transform = lambda x: x
     else:
-        raise NotImplementedError(f"Data transform method '{method}' not supported. Please choose from {supported_methods}."
+        raise NotImplementedError(f"Data transform method '{method}' not supported. Please choose from {supported_methods}.")
         
     return input_transform, output_transform

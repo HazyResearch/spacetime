@@ -9,8 +9,8 @@ class StandardizeTransform(AffineTransform):
     - Computed as (1 / std(x)) * x - mean(x) * (1 / std(x)) to fit with inverse call,
       which does (z + (mean(x) / std(x))) * std(x) = z * std(x) + mean(x)
     """
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, lag):
+        super().__init__(lag=lag)
         
     def forward(self, x):
         self.a = 1. / torch.std(x[:, :self.lag, :], dim=1)[:, None, :]

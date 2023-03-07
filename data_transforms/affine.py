@@ -20,10 +20,5 @@ class InverseAffineTransform(nn.Module):
         self.transform = transform  # AffineTransform object
         
     def forward(self, x):
-        try:  # Hacky, but catches different device tensors. Should clean up.
-            return (x + self.transform.b.to(x.device)) / self.transform.a
-        except:
-            try:
-                return (x + self.transform.b) / self.transform.a.to(x.device)
-            except:
-                breakpoint()
+        return ((x + self.transform.b.to(x.device)) /
+                self.transform.a.to(x.device))
