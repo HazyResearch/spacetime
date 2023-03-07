@@ -1,4 +1,14 @@
 method: differencing
 kwargs:
   max_diff_order: 4
+  model_dim: 128
+  n_kernels: 8
+  kernel_dim: 4
+  kernel_repeat: 16
+  n_heads: 1
+  head_dim: 1
+  kernel_weights: null
+  kernel_init: null
+  kernel_train: false
+  skip_connection: false
   

@@ -2,4 +2,6 @@ blocks:
 - input_dim: 128
   pre_config: 'ssm/preprocess/none'
   ssm_config: 'ssm/closed_loop_companion'
-  mlp_config: 'mlp/default'
+  mlp_config: 'mlp/identity'
+  skip_connection: false
+  skip_preprocess: false

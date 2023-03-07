@@ -10,3 +10,4 @@ kwargs:
   kernel_init: normal
   kernel_train: true
   skip_connection: false
+  norm_a_order: 0
