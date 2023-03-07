@@ -1,6 +1,6 @@
-from base import Embedding
-from linear import LinearEmbedding
-from repeat import RepeatEmbedding
+from .base import Embedding
+from .linear import LinearEmbedding
+from .repeat import RepeatEmbedding
 
 
 def init_embedding(config):

@@ -12,13 +12,12 @@ from utils.logging import print_header, print_args, print_config
 from optimizer import get_optimizer, get_scheduler
 from loss import get_loss
 from data_transforms import get_data_transforms
-
-from setup import _format_arg, _seed_everything
 from train import train_model, evaluate_model
 
-from setup.args import initialize_args
-from setup.config import load_model_config, load_main_config
-from setup.experiment import initialize_experiment
+from setup import format_arg, seed_everything
+from setup import initialize_args
+from setup import load_model_config, load_main_config
+from setup import initialize_experiment
 
 from model.network import SpaceTime
 
@@ -26,6 +25,7 @@ from model.network import SpaceTime
 def main():
     print_header('*** EXPERIMENT ARGS ***')
     args = initialize_args()
+    seed_everything(args.seed)
     experiment_configs = load_main_config(args, config_dir='./configs')
     
     load_data, visualize_data = initialize_data_functions(args)
@@ -50,6 +50,10 @@ def main():
                             for ix, split in enumerate(splits)}
     eval_loaders = get_evaluation_loaders(dataloaders, batch_size=args.batch_size)
     
+    # Setup input_dim based on features
+    x, y, *z = train_loader.dataset.__getitem__(0)
+    args.input_dim = x.shape[1]  # L x D
+    
     # Initialize Model
     args.device = (torch.device('cuda:0') 
                    if torch.cuda.is_available() and not args.no_cuda
@@ -68,7 +72,11 @@ def main():
     
     model = SpaceTime(**model_configs)
     
-    print_config(model_configs)
+    if args.verbose:
+        print(model)
+        print_header('*** MODEL ***')
+        print_config(model_configs)
+    
     
     # Initialize optimizer and scheduler
     optimizer = get_optimizer(model, experiment_configs['optimizer'])
@@ -95,17 +103,19 @@ def main():
     print(f'├── Lag: {args.lag}')
     print(f'├── Horizon: {args.horizon}')
     print(f'├── Criterion: {args.loss}')
-    try:
-        print(f'├── Dims: head_dim={args.head_dim}, model_dim={args.n_kernels * args.n_heads * args.head_dim}, n_kernels={args.n_kernels}, n_heads={args.n_heads}')
-    except:
-        print(f'├── Dims: head_dim={args.head_dim}, model_dim={args.n_kernels}, n_kernels={args.n_kernels}, n_heads={args.n_heads}')
+    print(f'├── Dims: input={args.input_dim}, model={args.model_dim}')
     print(f'├── Number trainable parameters: {params}')  # └── 
     print(f'├── Experiment name: {args.experiment_name}')
     print(f'├── Logging to: {args.log_results_path}')
-    criterions = {'loss': get_loss('cross_entropy', reduction='mean'),
-                  'correct': get_loss('correct', reduction='none')}
     
-    input_transform, output_transform = get_data_transforms(args.lag)
+    # Loss objectives
+    criterions = {name: get_loss(name) for name in ['rmse', 'mse', 'mae']}
+    eval_criterions = criterions
+    for name in ['rmse', 'mse', 'mae']:
+        eval_criterions[f'informer_{name}'] = get_loss(f'informer_{name}')
+    
+    input_transform, output_transform = get_data_transforms(args.data_transform,
+                                                            args.lag)
     
     model = train_model(model, optimizer, scheduler, dataloaders_by_split, 
                         criterions, max_epochs=args.max_epochs, config=args, 
@@ -119,11 +129,12 @@ def main():
                              enumerate(['eval_train', 'val', 'test'])}
     evaluate_model(model, dataloaders=eval_loaders_by_split, 
                    optimizer=optimizer, scheduler=scheduler, 
-                   criterions=criterions, config=args,
+                   criterions=eval_criterions, config=args,
                    epoch=args.best_val_metric_epoch, 
                    input_transform=input_transform, 
                    output_transform=output_transform,
-                   val_metric=args.val_metric, wandb=wandb)
+                   val_metric=args.val_metric, wandb=wandb,
+                   train=False)
                      
     
 if __name__ == '__main__':
