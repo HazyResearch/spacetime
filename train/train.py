@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd  # Local logging
 from tqdm.auto import tqdm
 
-from utils.logging import type_of_script
+from .epoch import run_epoch
 
 
 def print_epoch_metrics(metrics):

@@ -12,7 +12,7 @@ def initialize_shared_step(config):
         
 def run_epoch(model, dataloaders, optimizer, scheduler, criterions, 
               config, epoch, input_transform=None, output_transform=None,
-              val_metric='loss', wandb=None):
+              val_metric='loss', wandb=None, train=True):
     # dataloaders is {'train': train_loader, 'val': val_loader, 'test': test_loader}
     metrics = {split: None for split in dataloaders.keys()}
     shared_step = initialize_shared_step(config)
@@ -26,22 +26,23 @@ def run_epoch(model, dataloaders, optimizer, scheduler, criterions,
             std = 1.
         
         model, _metrics = shared_step(model, dataloader, optimizer, scheduler, 
-                                      criterions, epoch, config.device, split, 
+                                      criterions, epoch, config, split, 
                                       input_transform=input_transform,
                                       output_transform=output_transform)
         metrics[split] = _metrics
         
-    # Save checkpoints if metric better than before
-    save_checkpoint(model, optimizer, config, epoch, 'val',
-                    metrics['val'][val_metric], config.best_val_metric)
-    save_checkpoint(model, optimizer, config, epoch, 'train',
-                    metrics['train'][val_metric], config.best_train_metric)
-        
-    # Update optimizer
-    if config.scheduler == 'plateau':
-        scheduler.step(metrics['val'][val_metric])
-    elif config.scheduler == 'timm_cosine':
-        scheduler.step(epoch)
+    if train:
+        # Save checkpoints if metric better than before
+        save_checkpoint(model, optimizer, config, epoch, 'val', val_metric,
+                        metrics['val'][val_metric], config.best_val_metric)
+        save_checkpoint(model, optimizer, config, epoch, 'train', val_metric,
+                        metrics['train'][val_metric], config.best_train_metric)
+
+        # Update optimizer
+        if config.scheduler == 'plateau':
+            scheduler.step(metrics['val'][val_metric])
+        elif config.scheduler == 'timm_cosine':
+            scheduler.step(epoch)
 
     return model, metrics
 
@@ -54,16 +55,16 @@ def better_metric(metric_a, metric_b, metric_name):
 
 
 def save_checkpoint(model, optimizer, config, epoch, split,
-                    run_val_metric, best_val_metric): 
+                    val_metric, run_val_metric, best_val_metric): 
     checkpoint_path = getattr(config, f'best_{split}_checkpoint_path')
     try:  # try-except here because checkpoint fname could be too long
         if (better_metric(run_val_metric, best_val_metric, val_metric) or epoch == 0):
-            setattr(config, f'best_{split}_metric') = run_val_metric
-            setattr(config, f'best_{split}_metric_epoch') = epoch
+            setattr(config, f'best_{split}_metric', run_val_metric)
+            setattr(config, f'best_{split}_metric_epoch', epoch)
             config.best_val_metric = run_val_metric
             config.best_val_metric_epoch = epoch
             torch.save({'epoch': epoch,
-                        'val_metric': val_metric,
+                        'val_metric': run_val_metric,
                         'state_dict': model.state_dict(),
                         'optimizer_state_dict': optimizer.state_dict()
                        }, checkpoint_path)
