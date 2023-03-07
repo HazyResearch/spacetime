@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 import opt_einsum as oe
 from einops import repeat, rearrange
 
@@ -58,13 +59,19 @@ class CompanionSSM(SSM):
         self.register("c", c, trainable=True, lr=None, wd=None)
     
     def norm(self, x, ord=1):
-        # x.shape = C x H x D
-        x_norm = torch.linalg.norm(x, ord=ord, dim=2, keepdim=True)
-        x = x / x_norm if x_norm[:, 0].item() != 0 else x 
+        # x.shape is either (H x D) or (H x D x D)
+        x_norm = torch.linalg.norm(x, ord=ord, dim=-1, keepdim=True)
+        # If norm(x) in batch close to 0, don't normalize 
+        # (heuristicky, but we norm for stability)
+        try:
+            x = x / x_norm if torch.abs(x_norm).mean().item() > 1e-4 else x  
+        except Exception as e:
+            print(e)
+            breakpoint()
+        # x = F.normalize(x, dim=1, p=ord, eps=1)
         return x
     
     def matrix_power(self, l, c, b, p):
-        ch, h, d = b.shape 
         # Construct companion matrix
         A = self.shift_matrix.to(p.device) + (
             oe.contract('h i, h j -> h j i', 

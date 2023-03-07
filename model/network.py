@@ -29,8 +29,7 @@ class SpaceTime(nn.Module):
         self.horizon = horizon
         
         self.init_weights(embedding_config, encoder_config,
-                          decoder_config, output_config,
-                          position_config)
+                          decoder_config, output_config)
         
     # -----------------
     # Initialize things
@@ -49,12 +48,16 @@ class SpaceTime(nn.Module):
         return init_embedding(config)
     
     def init_encoder(self, config):
-        return Encoder(config)
+        self.encoder = Encoder(config)
+        # Allow access to first encoder SSM kernel_dim
+        self.kernel_dim = self.encoder.blocks[0].ssm.kernel_dim
+        return self.encoder
     
     def init_decoder(self, config):
-        decoder = Decoder(config)
-        decoder.blocks.ssm.lag = self.lag
-        decoder.blocks.ssm.horizon = self.horizon
+        self.decoder = Decoder(config)
+        self.decoder.blocks.ssm.lag = self.lag
+        self.decoder.blocks.ssm.horizon = self.horizon
+        return self.decoder
     
     def init_output(self, config):
         return init_mlp(config)
@@ -90,12 +93,25 @@ class SpaceTime(nn.Module):
         # Assume u.shape is (batch x len x dim), 
         # where len = lag + horizon
         z = self.embedding(u)
+        # print('z = self.embedding(u)')
+        # breakpoint()
         z = self.encoder(z)
+        # print('z = self.encoder(z)')
+        # breakpoint()
         y_c, z_u = self.decoder(z)  # closed-loop
+        # print('y_c, z_u = self.decoder(z)')
+        # breakpoint()
+        y_c = self.output(y_c)
+        # print('y_c = self.output(y_c)')
+        # breakpoint()
+        
         z_u_pred, z_u_true = z_u
         if not self.inference_only:  
             # Also compute outputs via open-loop
             self.set_closed_loop(False)
-            y_o, _ = self.decoder(z) 
+            y_o, _ = self.decoder(z)
+            y_o = self.output(y_o)
+        else:
+            y_o = None
         # Return (model outputs), (model last-layer next-step inputs)
         return (y_c, y_o), (z_u_pred, z_u_true)
