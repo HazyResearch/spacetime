@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 import opt_einsum as oe
 from einops import repeat, rearrange
 
@@ -55,12 +56,6 @@ class ClosedLoopCompanionSSM(CompanionSSM):
         k = self.init_kernel_weights(self.kernel_init)
         self.register("k", k, trainable=True, lr=None, wd=None)
     
-    def norm(self, x, ord=1):
-        # x.shape = C x H x D
-        x_norm = torch.linalg.norm(x, ord=ord, dim=2, keepdim=True)
-        x = x / x_norm if x_norm[:, 0].item() != 0 else x 
-        return x
-    
     def get_companion_matrix(self, p):
         # Construct companion matrix
         return self.shift_matrix.to(p.device) + (
@@ -73,7 +68,7 @@ class ClosedLoopCompanionSSM(CompanionSSM):
         # 1. Inference only (i.e., not training) and closed-loop,
         # 2. Not inference only (i.e., during training) and closed-loop
         # 3. Not inference only and open-loop
-        a = self.norm(a, ord=1)
+        
         if self.inference_only and self.closed_loop:
             # Only return kernel for final model output predictions, i.e.,
             # Krylov matrix (CB, CAB, CA^2B, ... CA^{l + h - 1}B) 
@@ -85,8 +80,8 @@ class ClosedLoopCompanionSSM(CompanionSSM):
             # Return both final output kernel (k_y) and next-time-step input kernel (k_u), i.e.,
             # both C(A + BK)^{n}B and K(A + BK)^{n}B
             k = krylov(l, a, self.b, c=None).to(u.device)
-            k_y = torch.einsum('...nl, ...n -> ...l', k, self.c).continuous()
-            k_u = torch.einsum('...nl, ...n -> ...l', k, self.k).continuous()
+            k_y = torch.einsum('...nl, ...n -> ...l', k, self.c).contiguous()
+            k_u = torch.einsum('...nl, ...n -> ...l', k, self.k).contiguous()
             
         elif self.inference_only and not self.closed_loop:
             raise NotImplementedError  # Never happens
@@ -107,29 +102,38 @@ class ClosedLoopCompanionSSM(CompanionSSM):
         b, d, l = u.shape
         l_horizon = self.horizon
         
-        A = self.get_companion_matrix(self.a)
+        # Normalize just the non-shift column, 
+        # alternatively could normalize A + BK below 
+        # a = (self.norm(self.a, ord=self.norm_a_order) 
+        #      if self.norm_a_order > 0 else self.a)
+        a = self.a
+        A = self.get_companion_matrix(a)
         if self.closed_loop:  # Compute closed-loop forecast
-            # Get input
-            u_horizon = torch.zeros(b, d, l + l_horizon)
-            u_horizon[:, :, 0] = u[:, :, 0]  # supervised with y[1], ... , y[L + H]
+            # Get input, which is just zeros except first time-step
+            # We pad only last dim on right, bc u.shape is B x D x L now
+            zero_pad = (0, l + l_horizon - 1, 0, 0, 0, 0)  # Supervised with y[1], ... , y[L + H]
+            u_horizon = F.pad(u[:, :, :1], zero_pad, mode='constant', value=0)
             
             # Get A + BK matrix
             A_BK = A + oe.contract('h i, h j -> h i j', self.b, self.k)
+            A_BK = self.norm(A_BK, ord=self.norm_a_order)
+            
             # Get kernels for output and next-step input
             k_horizons = self.get_kernel(u_horizon, a=A_BK, l=l+l_horizon)
-            k_horizons = [repeat(k_horizon, 'nk kd -> (kr nk nh hd) kd', 
+            k_horizons = [repeat(k, 'nk kd -> (kr nk nh hd) kd', 
                                  kr=self.kernel_repeat, nh=self.n_heads,
                                  hd=self.head_dim)
-                          for k_horizon in k_horizons]
+                          for k in k_horizons if k is not None]
             y = [None, None]  # layer outputs, and next-time-step layer inputs
             for kix, k in enumerate(k_horizons):
-                if k is not None:
-                    y[kix] = rearrange(self.fft_conv(u_horizon, k),
-                                       'b d l -> b l d')
+                y[kix] = rearrange(self.fft_conv(u_horizon, k),
+                                   'b d l -> b l d')
+            # Layer outputs, and next-time-step layer inputs
             return y[0], y[1]  # shape is B x (L + H) x D if not None
         else:
             # Compute open-loop forecast up to L
-            k = self.get_kernel(u, a=A, l=l)
+            A = self.norm(A, ord=self.norm_a_order)
+            k = self.get_kernel(u, a=A, l=l)[0]
             k = repeat(k, 'nk kd -> (kr nk nh hd) kd', 
                        kr=self.kernel_repeat, nh=self.n_heads, hd=self.head_dim)
             y = rearrange(self.fft_conv(u, k), 'b d l -> b l d')

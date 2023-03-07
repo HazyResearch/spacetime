@@ -19,22 +19,31 @@ class Block(OurModule):
                  input_dim: int,
                  pre_config: str=None,
                  ssm_config: str=None,
-                 mlp_config: str=None):
+                 mlp_config: str=None,
+                 skip_connection: bool=False,
+                 skip_preprocess: bool=False):
         super().__init__()
         self.input_dim = input_dim
+        self.skip_connection = skip_connection
+        self.skip_preprocess = skip_preprocess
         
         self.pre = init_pre(pre_config)
         self.ssm = init_ssm(ssm_config)
         self.mlp = init_mlp(mlp_config)
             
-    def forward(self, x):
+    def forward(self, u):
         """
         Input shape: B x L x D
         """
-        x = self.pre(x)
-        x = self.ssm(x)
-        x = self.mlp(x)
-        return x
+        z = self.pre(u)
+        y = self.ssm(z)
+        y = self.mlp(y)
+        if self.skip_connection and self.skip_preprocess:
+            return y + u  # Also skip preprocessing step
+        elif self.skip_connection:
+            return y + z
+        else:
+            return y
     
     
 class ClosedLoopBlock(Block):
@@ -48,16 +57,17 @@ class ClosedLoopBlock(Block):
     having more "open" blocks on top of the ClosedLoopBlock 
     in a multi-layer decoder.
     """
-    def __init__(**kwargs):
+    def __init__(self, **kwargs):
+        kwargs['skip_connection'] = False
         super().__init__(**kwargs)
         
-    def forward(self, x):
-        x = self.pre(x)
+    def forward(self, u):
+        z = self.pre(u)
         # Computes layer outputs and next-time-step layer inputs
-        y, u = self.ssm(x)  
+        y, u_next = self.ssm(z)  
         # Return both layer outputs and prediction + "ground-truth"
         # for next-time-step layer inputs
-        return y, (u, x)    
+        return y, (u_next, u)    
     
     
 class Encoder(nn.Module):
@@ -95,8 +105,8 @@ class Decoder(nn.Module):
         self.blocks = self.init_blocks(config)
         
     def init_blocks(self, config):
-        self.blocks = ClosedLoopBlock(**config['blocks'][0])
+        return ClosedLoopBlock(**config['blocks'][0])
     
     def forward(self, x):
-        return self.blocks(x)
+        return self.blocks(x)  # y, (u_next, u)
  

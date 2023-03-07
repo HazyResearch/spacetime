@@ -51,7 +51,7 @@ class SSM(OurModule):
         u_f = torch.fft.rfft(u_input, n=2*L) # (B H L)
         v_f = torch.fft.rfft(v_kernel[:, :L], n=2*L) # (H L)
 
-        y_f = oe.contract('b h l , h l -> b h l', u_f, v_f) 
+        y_f = oe.contract('b h l, h l -> b h l', u_f, v_f) 
         y   = torch.fft.irfft(y_f, n=2*L)[..., :L]  # (B H L)
         return y
     
@@ -72,14 +72,18 @@ class SSM(OurModule):
         k = self.get_kernel(u) if self.kernel_weights is None else self.k
         k = repeat(k, 'nk kd -> (kr nk nh hd) kd', 
                    kr=self.kernel_repeat, nh=self.n_heads, hd=self.head_dim)
-        y = self.fft_conv(u, k)
+        try:
+            y = self.fft_conv(u, k)
+        except Exception as e:
+            print(e)
+            breakpoint()
         if self.skip_connection:
             y = y + oe.contract('b d l, d -> b d l', u, self.skip)
         y = rearrange(y, 'b d l -> b l d')
         return y
         
         
-class IdentityKernel(Kernel):
+class IdentitySSM(SSM):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         
