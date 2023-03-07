@@ -5,7 +5,7 @@ def initialize_args():
     parser = argparse.ArgumentParser(description='SpaceTime arguments')
     
     # Model
-    parser.add_argument('--model', type=str, default='hedgehog')
+    parser.add_argument('--model', type=str, default='spacetime')
     parser.add_argument('--embedding_config', type=str, default='embedding/repeat')
     parser.add_argument('--preprocess_config', type=str, default='preprocess/default')
     parser.add_argument('--encoder_config', type=str, default='encoder/default')
@@ -26,11 +26,9 @@ def initialize_args():
     parser.add_argument('--dropout', type=float, default=None)
     parser.add_argument('--layernorm', action='store_true', default=None)
 
-    # Kernel-specific args
+    # SSM
     parser.add_argument('--kernel_init', type=str, default=None)
-    # Skip Connections
-    parser.add_argument('--skip_conv', action='store_true', default=None)
-    parser.add_argument('--skip_kernel', action='store_true', default=None)
+    parser.add_argument('--skip_ssm', action='store_true', default=None)
     # MLP
     parser.add_argument('--mlp_n_layers', type=int, default=None)
     parser.add_argument('--mlp_n_activations', type=int, default=None)
@@ -45,25 +43,29 @@ def initialize_args():
     parser.add_argument('--loader', type=str, default='default')
     parser.add_argument('--num_workers', type=int, default=2)
     parser.add_argument('--data_dir', type=str, default='./data')
-    ## Informer-specific
-    parser.add_argument('--no_scale', type=bool, action='store_true', default=False)
-    parser.add_argument('--inverse', type=bool, action='store_true', default=False)
+    ## Informer / time-series-specific
+    parser.add_argument('--features', type=str, default='S')
+    parser.add_argument('--no_scale', action='store_true', default=False)
+    parser.add_argument('--inverse', action='store_true', default=False)
+    parser.add_argument('--data_transform', type=str, default='mean',
+                        choices=['mean', 'mean_input', 'last', 'standardize', 'none'])
     
     # Prediction Task
-    parser.add_argument('--lag', type=float, default=1, 
+    parser.add_argument('--lag', type=int, default=1, 
                         help="Number of samples included in input. If 0, then can change?") 
     parser.add_argument('--horizon', type=int, default=1)
     parser.add_argument('--loss', type=str, default='rmse',
                         choices=['rmse', 'mse', 'mae', 'cross_entropy'])
     
     # Training
+    parser.add_argument('--criterion_weights', nargs='+')  # Convert to float after setup.experiment.initialize_experiment
     parser.add_argument('--optimizer', type=str, default='adamw')
     parser.add_argument('--scheduler', type=str, default='timm_cosine',
                         choices=['none', 'plateau', 'timm_cosine'])
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--max_epochs', type=int, default=1000)
     parser.add_argument('--early_stopping_epochs', type=int, default=50)
-    parser.add_argument('--val_metric', type=str, default='loss')
+    parser.add_argument('--val_metric', type=str, default='rmse')
     
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--weight_decay', type=float, default=0.0)
@@ -80,7 +82,7 @@ def initialize_args():
     parser.add_argument('--no_cuda', action='store_true', default=False)
     parser.add_argument('--no_pin_memory', action='store_true', default=False)
     parser.add_argument('--verbose', action='store_true', default=False)
-    parser.add_argument('--replicate', type=int, default=1)  # hack for waterbirds
+    parser.add_argument('--replicate', type=int, default=0)
     parser.add_argument('--seed', type=int, default=0)
 
     args = parser.parse_args()

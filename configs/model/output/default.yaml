@@ -1,6 +1,5 @@
 input_dim: 128
 output_dim: 1
-output_head:
 method: mlp
 kwargs:
   input_dim: 128
