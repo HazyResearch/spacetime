@@ -33,7 +33,7 @@ def load_data(config_dataset, config_loader):
     # - Borrowed from S4 dataloaders. For now just set resolution to 1
     val_loader   = dataset.val_dataloader(**config_loader)[None]
     test_loader  = dataset.test_dataloader(**config_loader)[None]
-    return (train_loader, val_loader, test_loader), dataset
+    return train_loader, val_loader, test_loader  # , dataset
 
 
 def visualize_data(dataloaders, splits=['train', 'val', 'test'],

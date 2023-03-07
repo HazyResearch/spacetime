@@ -1,8 +1,6 @@
 import importlib
 from torch.utils.data import DataLoader
 
-from setup.experiment import _format_arg
-
 
 def initialize_data_functions(args):
     """
