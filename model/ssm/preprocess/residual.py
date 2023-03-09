@@ -1,5 +1,8 @@
 import torch
 import torch.nn.functional as F
+
+from einops import rearrange, repeat
+
 from model.ssm.base import SSM
 from model.ssm.preprocess.differencing import get_pascal
 
@@ -11,36 +14,47 @@ class ResidualSSM(SSM):
     def __init__(self, 
                  max_diff_order: int=4, 
                  min_avg_window: int=4, 
-                 max_avg_window: int=720, 
+                 max_avg_window: int=720,
+                 n_kernels: int=8,
+                 kernel_repeat: int=16,
                  **kwargs):
         self.max_diff_order = max_diff_order
         self.min_avg_window = min_avg_window
         self.max_avg_window = max_avg_window
-        self.n_ma_kernels = kwargs['n_kernels'] - self.max_diff_order
+        self.n_ma_kernels = (n_kernels - self.max_diff_order) * kernel_repeat
         kwargs['n_heads'] = 1
         kwargs['kernel_weights'] = None
         kwargs['kernel_train'] = False
         kwargs['skip_connection'] = False
         # Set kwargs['kernel_repeat'] to number of model n_kernels
-        super().__init__(**kwargs)
+        super().__init__(n_kernels=n_kernels, kernel_repeat=kernel_repeat, **kwargs)
         
     def init_weights(self):
-        kernel    = self.init_differencing_weights()
-        ma_window = self.init_moving_average_weights()
-        self.register('kernel', kernel, trainable=False, lr=None, wd=None)
-        self.register('ma_window', ma_window, trainable=True, lr=None, wd=None)
+        diff_kernel    = repeat(self.init_differencing_weights(), 'nk kd -> (kr nk) kd',
+                                kr=self.kernel_repeat)
+        ma_r_kernel = self.init_moving_average_weights()  # Shape: (kr x nk) x hd
+        self.register('diff_kernel', diff_kernel, trainable=False, lr=None, wd=None)
+        self.register('ma_r_kernel', ma_r_kernel, trainable=False, lr=None, wd=None)
         
     def init_differencing_weights(self):
-        kernel = torch.zeros(self.n_kernels, self.kernel_dim).float()
-        diff_coeffs = get_pascal(self.max_diff_order, self.n_kernels).float()
+        kernel = torch.zeros(self.max_diff_order, self.max_diff_order).float()
+        diff_coeffs = get_pascal(self.max_diff_order, self.max_diff_order).float()
         kernel[:, :self.max_diff_order] += diff_coeffs
         return kernel
     
     def init_moving_average_weights(self):
         ma_window = torch.randint(low=self.min_avg_window, 
                                   high=self.max_avg_window,  # self.kernel_dim
-                                  size=(1, self.n_ma_kernels)).float()
-        return ma_window
+                                  size=(1, self.n_ma_kernels))
+        # Compute moving average kernel 
+        max_window = ma_window.max().item()
+        kernel = torch.zeros(self.n_ma_kernels, max_window)
+        kernel[:, 0] = 1.
+        
+        moving_avg = (1. / torch.clamp(ma_window, min=self.min_avg_window, max=max_window))
+        for ix, window in enumerate(ma_window[0]):
+            kernel[ix, :window] -= moving_avg[:1, ix]
+        return kernel
 
     def get_kernel(self, u):
         """
@@ -48,13 +62,33 @@ class ResidualSSM(SSM):
         - Assume u is shape B x D x L
         """
         b, d, l = u.shape
-        max_window = min(self.max_avg_window, l)
-        moving_avg = (1. / torch.clamp(torch.round(self.ma_window), 
-                                       min=self.min_avg_window, 
-                                       max=max_window).T)
-        kernel = F.pad(self.kernel, (0, l - self.kernel_dim, 0, 0), 'constant', 0)
-        kernel[self.max_diff_order:self.max_diff_order + self.n_ma_kernels, :max_window] -= moving_avg
+        l = max(l, self.diff_kernel.shape[1])
+        # max_window = min(self.max_avg_window, l)
+        # moving_avg = (1. / torch.clamp(torch.round(self.ma_window), 
+        #                                min=self.min_avg_window, 
+        #                                max=max_window).T)
+        # Pad kernels to input length
+        diff_kernel = F.pad(self.diff_kernel, (0, l - self.diff_kernel.shape[1]), 'constant', 0)
+        ma_r_kernel = F.pad(self.ma_r_kernel, (0, l - self.ma_r_kernel.shape[1]), 'constant', 0)
+        
+        # Combine kernels
+        diff_kernel = rearrange(diff_kernel, '(kr nk) kd -> kr nk kd', kr=self.kernel_repeat)
+        ma_r_kernel = rearrange(ma_r_kernel, '(kr nk) kd -> kr nk kd', kr=self.kernel_repeat)
+        
+        kernel = torch.cat([diff_kernel, ma_r_kernel], dim=1)
+        kernel = rearrange(kernel, 'kr nk kd -> (kr nk) kd')
+        
+        # # Compute moving average kernel 
+        # ma_r_kernel = torch.zeros(*diff_kernel.shape).to(moving_avg.device)
+        # ma_r_kernel[:, 0] = 1.
+        # ma_r_kernel[:, :max_window] -= moving_avg
+        # Combine kernels
+        # kernel = rearrange([diff_kernel, ma_r_kernel], 'r nk kd -> (nk r) kd')  # Intersperse
         return kernel
     
     def forward(self, u):
-        return super().forward(u)
+        # Same as base SSM forward, but kernel repeating already taken care of
+        u = rearrange(u, 'b l d -> b d l')
+        k = self.get_kernel(u)
+        y = self.fft_conv(u, k)
+        return rearrange(y, 'b d l -> b l d')
