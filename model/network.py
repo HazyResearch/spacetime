@@ -80,10 +80,10 @@ class SpaceTime(nn.Module):
         self.set_inference_only(mode=True)
         
     def set_lag(self, lag: int):
-        decoder.blocks.ssm.lag = lag
+        self.decoder.blocks.ssm.lag = lag
         
     def set_horizon(self, horizon: int):
-        decoder.blocks.ssm.horizon = horizon
+        self.decoder.blocks.ssm.horizon = horizon
         
     # ------------
     # Forward pass

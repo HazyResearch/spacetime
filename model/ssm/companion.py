@@ -13,8 +13,8 @@ class CompanionSSM(SSM):
     -> y_t = C \sum_{i = 0}^{k - 1 - i} A^k B u_i
        where A is companion matrix
     """
-    def __init__(self, norm_a_order, **kwargs):
-        self.norm_a_order = norm_a_order
+    def __init__(self, norm_order, **kwargs):
+        self.norm_order = norm_order
         kwargs['kernel_repeat'] = 1
         kwargs['kernel_weights'] = None
         kwargs['kernel_train'] = True
@@ -84,8 +84,8 @@ class CompanionSSM(SSM):
     def get_kernel(self, u, c=None, l=None):
         l = u.shape[-1] if l is None else l
         c = self.c if c is None else c
-        a = (self.norm(self.a, ord=self.norm_a_order) 
-             if self.norm_a_order > 0 else self.a)
+        a = (self.norm(self.a, ord=self.norm_order) 
+             if self.norm_order > 0 else self.a)
         f = self.matrix_power(l, c, self.b, a).to(u.device)
         return f
     

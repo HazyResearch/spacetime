@@ -69,9 +69,12 @@ class SSM(OurModule):
     def forward(self, u):
         u = rearrange(u, 'b l d -> b d l')  # Assume u is B x L x D
         # Repeat kernels across heads
-        k = self.get_kernel(u) if self.kernel_weights is None else self.k
-        k = repeat(k, 'nk kd -> (kr nk nh hd) kd', 
+        if self.kernel_weights is None:
+            k = self.get_kernel(u)
+            k = repeat(k, 'nk kd -> (kr nk nh hd) kd', 
                    kr=self.kernel_repeat, nh=self.n_heads, hd=self.head_dim)
+        else:
+            k = self.k
         try:
             y = self.fft_conv(u, k)
         except Exception as e:
