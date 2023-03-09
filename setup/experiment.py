@@ -44,7 +44,7 @@ def initialize_experiment(args, experiment_name_id='',
     dataset_name = args.dataset if args.variant is None else f'{args.dataset}{args.variant}'
     args.experiment_name += f'm={args.model}'  # f'd={dataset_name}-m={args.model}'
     try:
-        args.criterion_weights = '_'.join(args.criterion_weights)
+        args.criterion_weights = '+'.join(args.criterion_weights)
     except:
         args.criterion_weights = '1_1_1'
     for arg in ['embedding_config', 'preprocess_config', 'encoder_config', 'decoder_config', 'output_config', 
@@ -60,7 +60,7 @@ def initialize_experiment(args, experiment_name_id='',
     args.best_train_metric = best_train_metric
     args.best_val_metric   = best_val_metric
     
-    checkpoint_dir = join(args.checkpoint_dir, args.dataset)
+    checkpoint_dir = join(args.checkpoint_dir, dataset_name)
     if not os.path.isdir(checkpoint_dir):
         os.makedirs(checkpoint_dir)
     args.checkpoint_dir = checkpoint_dir
@@ -99,6 +99,6 @@ def initialize_experiment(args, experiment_name_id='',
     args.log_results_dict = {'epoch': [], 'split': []}
     
     # Loss weights
-    args.criterion_weights = [float(w) for w in args.criterion_weights.split('_')]
+    args.criterion_weights = [float(w) for w in args.criterion_weights.split('+')]
     
     return wandb

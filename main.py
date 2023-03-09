@@ -3,6 +3,7 @@ import copy
 import torch
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from os.path import join
 from omegaconf import OmegaConf
@@ -12,7 +13,7 @@ from utils.logging import print_header, print_args, print_config
 from optimizer import get_optimizer, get_scheduler
 from loss import get_loss
 from data_transforms import get_data_transforms
-from train import train_model, evaluate_model
+from train import train_model, evaluate_model, plot_forecasts
 
 from setup import format_arg, seed_everything
 from setup import initialize_args
@@ -71,12 +72,18 @@ def main():
     model_configs['horizon'] = args.horizon
     
     model = SpaceTime(**model_configs)
+    model.replicate = args.replicate  # Only used for testing specific things indicated by replicate
+    model.set_lag(args.lag)
+    model.set_horizon(args.horizon)
     
     if args.verbose:
         print(model)
         print_header('*** MODEL ***')
         print_config(model_configs)
-    
+        
+        from einops import rearrange
+        print_header('└── Preprocessing kernels:')
+        print(model.encoder.blocks[0].pre.get_kernel(rearrange(x, '(o l) d -> o d l', o=1)))
     
     # Initialize optimizer and scheduler
     optimizer = get_optimizer(model, experiment_configs['optimizer'])
@@ -125,16 +132,25 @@ def main():
                         return_best=True, early_stopping_epochs=args.early_stopping_epochs)    
     
     # Eval best val checkpoint
+    eval_splits = ['eval_train', 'val', 'test']
     eval_loaders_by_split = {split: eval_loaders[ix] for ix, split in
-                             enumerate(['eval_train', 'val', 'test'])}
-    evaluate_model(model, dataloaders=eval_loaders_by_split, 
-                   optimizer=optimizer, scheduler=scheduler, 
-                   criterions=eval_criterions, config=args,
-                   epoch=args.best_val_metric_epoch, 
-                   input_transform=input_transform, 
-                   output_transform=output_transform,
-                   val_metric=args.val_metric, wandb=wandb,
-                   train=False)
+                             enumerate(eval_splits)}
+    model, log_metrics, total_y = evaluate_model(model, dataloaders=eval_loaders_by_split, 
+                                                 optimizer=optimizer, scheduler=scheduler, 
+                                                 criterions=eval_criterions, config=args,
+                                                 epoch=args.best_val_metric_epoch, 
+                                                 input_transform=input_transform, 
+                                                 output_transform=output_transform,
+                                                 val_metric=args.val_metric, wandb=wandb,
+                                                 train=False)
+    n_plots = len(splits) # train, val, test + freq. response
+    fig, axes = plt.subplots(1, n_plots, figsize=(6.4 * n_plots, 4.8))
+    
+    plot_forecasts(total_y, splits=eval_splits, axes=axes)
+    
+    if not args.no_wandb:
+        wandb.log({"forecast_plot": fig})
+        wandb.log(log_metrics)
                      
     
 if __name__ == '__main__':
