@@ -68,7 +68,7 @@ def update_block_config_from_args(config, args):
     #     config.encoder_config['blocks'][0].pre_config, args)
     encoder_block = config.encoder_config['blocks'][0]
     encoder_block.pre_config = update_preprocess_config_from_args(encoder_block.pre_config, args)
-    encoder_block.ssm_config = update_ssm_config_from_args(encoder_block.ssm_config, args)
+    # encoder_block.ssm_config = update_ssm_config_from_args(encoder_block.ssm_config, args)
     encoder_block.mlp_config = update_mlp_config_from_args(encoder_block.mlp_config, args)
     
     # Update remaining blocks
@@ -84,7 +84,26 @@ def update_block_config_from_args(config, args):
         args.n_blocks = len(config.encoder_config['blocks']) + 1  # 1 decoder block for now
     config.encoder_config['blocks'] = ([config.encoder_config['blocks'][0]] + 
                                        [encoder_block] * (n_blocks - 1))
+    
+    # Update decoder block
+    config.decoder_config.blocks[0] = update_decoder_block(config.decoder_config.blocks[0], args)
     return config
+
+
+def update_decoder_block(decoder_block, args):
+    decoder_block.ssm_config.kwargs.lag = args.lag
+    decoder_block.ssm_config.kwargs.horizon = args.horizon
+    
+    n_heads, head_dim = update_n_heads(decoder_block.ssm_config, args)
+    n_kernels = update_n_kernels(decoder_block.ssm_config, args, n_heads)
+    
+    if args.model_dim is not None:
+        decoder_block.ssm_config.kwargs.model_dim = args.model_dim 
+    decoder_block.ssm_config.kwargs.n_kernels = n_kernels
+    decoder_block.ssm_config.kwargs.n_heads = n_heads
+    decoder_block.ssm_config.kwargs.head_dim = head_dim
+    return decoder_block
+    
 
 
 def update_preprocess_config_from_args(config, args):
