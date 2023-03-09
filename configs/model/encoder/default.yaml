@@ -11,9 +11,3 @@ blocks:
   mlp_config: 'mlp/default'
   skip_connection: true
   skip_preprocess: true
-- input_dim: 128
-  pre_config: 'ssm/preprocess/none'
-  ssm_config: 'ssm/companion'
-  mlp_config: 'mlp/default'
-  skip_connection: true
-  skip_preprocess: true

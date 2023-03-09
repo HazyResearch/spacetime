@@ -2,7 +2,7 @@ method: companion
 kwargs:
   model_dim: 128
   n_kernels: 128
-  kernel_dim: 32
+  kernel_dim: 64
   kernel_repeat: 1
   n_heads: 1
   head_dim: 1
@@ -10,5 +10,5 @@ kwargs:
   kernel_init: normal
   kernel_train: true
   skip_connection: true
-  norm_a_order: 1
+  norm_order: 1
   
