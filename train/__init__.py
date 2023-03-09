@@ -1,2 +1,2 @@
 from .train import train_model
-from .evaluate import evaluate_model
+from .evaluate import evaluate_model, plot_forecasts

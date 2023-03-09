@@ -15,7 +15,9 @@ def run_epoch(model, dataloaders, optimizer, scheduler, criterions,
               val_metric='loss', wandb=None, train=True):
     # dataloaders is {'train': train_loader, 'val': val_loader, 'test': test_loader}
     metrics = {split: None for split in dataloaders.keys()}
+    total_y = {split: None for split in dataloaders.keys()}
     shared_step = initialize_shared_step(config)
+    
     
     for split, dataloader in dataloaders.items():
         try:
@@ -25,11 +27,12 @@ def run_epoch(model, dataloaders, optimizer, scheduler, criterions,
             mean = 0.
             std = 1.
         
-        model, _metrics = shared_step(model, dataloader, optimizer, scheduler, 
-                                      criterions, epoch, config, split, 
-                                      input_transform=input_transform,
-                                      output_transform=output_transform)
+        model, _metrics, y = shared_step(model, dataloader, optimizer, scheduler, 
+                                         criterions, epoch, config, split, 
+                                         input_transform=input_transform,
+                                         output_transform=output_transform)
         metrics[split] = _metrics
+        total_y[split] = y
         
     if train:
         # Save checkpoints if metric better than before
@@ -44,7 +47,7 @@ def run_epoch(model, dataloaders, optimizer, scheduler, criterions,
         elif config.scheduler == 'timm_cosine':
             scheduler.step(epoch)
 
-    return model, metrics
+    return model, metrics, total_y
 
 
 def better_metric(metric_a, metric_b, metric_name):
