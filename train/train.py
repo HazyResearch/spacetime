@@ -14,7 +14,10 @@ def print_epoch_metrics(metrics):
     for split in metrics.keys():
         print('-'*4, f'{split}', '-'*4)
         for k, v in metrics[split].items():
-            print(f'- {k}: {v:.3f}')
+            if k != 'total':
+                print(f'- {k}: {v:.3f}')
+            else:
+                print(f'- {k}: {int(v)}')
 
             
 def train_model(model, optimizer, scheduler, dataloaders_by_split, 
@@ -55,9 +58,9 @@ def train_model(model, optimizer, scheduler, dataloaders_by_split,
                             description += f' | {split}/{metric_name}: {metric:.3f}'
             pbar.set_description(description)
 
-        _, metrics = run_epoch(model, dataloaders_by_split, optimizer, scheduler, 
-                               criterions, config, epoch, input_transform, output_transform,
-                               val_metric, wandb)
+        _, metrics, y = run_epoch(model, dataloaders_by_split, optimizer, scheduler, 
+                                  criterions, config, epoch, input_transform, output_transform,
+                                  val_metric, wandb)
         
         # Reset early stopping count if epoch improved
         if config.best_val_metric_epoch == epoch:  
