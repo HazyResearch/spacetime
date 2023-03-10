@@ -14,10 +14,6 @@ def compute_informer_metrics(y_pred, y_true):
 
 def shared_step(model, dataloader, optimizer, scheduler, criterions, epoch, 
                 config, split, input_transform=None, output_transform=None):
-    
-    if epoch == 0 and split == 'train':
-        print('--- Criterion weights ---')
-        print(config.criterion_weights)
 
     if input_transform is None:
         input_transform = lambda x: x
