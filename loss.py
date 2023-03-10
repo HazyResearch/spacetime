@@ -33,9 +33,10 @@ def get_loss(loss, reduction='none', ignore_index=-100):
     
 def multivariate_RMSE(reduction='none'):
     criterion = torch.nn.MSELoss(reduction=reduction)
-    def loss(y_pred, y_true, ):
-        return torch.sqrt(
-            criterion(y_pred, y_true).mean(dim=0))  # .mean()
+    def loss(y_pred, y_true):
+        # y_pred, y_true.shape is B x L x D
+        mse = criterion(y_pred, y_true).mean(dim=1)  # shape B x D
+        return torch.sqrt(mse)
     return loss
 
 
