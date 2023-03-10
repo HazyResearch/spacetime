@@ -40,7 +40,7 @@ def plot_forecasts(y_by_splits, splits, feature_dim=0, axes=None):
         y = y_by_splits[split]
         
         # Visualization
-        samples_to_plot = plot_samples(y)
+        samples_to_plot = get_plotting_samples(y)
         pred_ix = 0
         for pred_type, pred_samples in samples_to_plot.items():
             if pred_type != 'true':
@@ -55,7 +55,7 @@ def plot_forecasts(y_by_splits, splits, feature_dim=0, axes=None):
                 axis.set_title(f'{split} forecasts', size=15)
         
         
-def plot_samples(y):
+def get_plotting_samples(y):
     """
     y = {'true': torch.stack(total_y_true)
          'pred': torch.stack(total_y_pred),
