@@ -26,6 +26,7 @@ from model.network import SpaceTime
 def main():
     print_header('*** EXPERIMENT ARGS ***')
     args = initialize_args()
+    args.max_epochs = args.max_epochs * 10  # Hacks
     seed_everything(args.seed)
     experiment_configs = load_main_config(args, config_dir='./configs')
     
@@ -109,7 +110,7 @@ def main():
     print_header(f'*** TRAINING ***')
     print(f'├── Lag: {args.lag}')
     print(f'├── Horizon: {args.horizon}')
-    print(f'├── Criterion: {args.loss}')
+    print(f'├── Criterion: {args.loss}, weights: {args.criterion_weights}')
     print(f'├── Dims: input={args.input_dim}, model={args.model_dim}')
     print(f'├── Number trainable parameters: {params}')  # └── 
     print(f'├── Experiment name: {args.experiment_name}')
