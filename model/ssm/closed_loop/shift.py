@@ -1,34 +1,35 @@
 import torch
+import torch.nn.functional as F
 import opt_einsum as oe
 from einops import repeat, rearrange
 
 from model.functional.krylov import krylov
-from model.ssm.companion import CompanionSSM
+from model.ssm.closed_loop.companion import ClosedLoopCompanionSSM
 
 
-class ShiftSSM(CompanionSSM):
-    """
-    Open-loop implementation of Shift SSM:
-    -> y_t = C \sum_{i = 0}^{k - 1 - i} S^k B u_i
-       where S is shift matrix
-    """
+class ClosedLoopShiftSSM(ClosedLoopCompanionSSM):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         
     def init_weights(self):
-        super().init_weights()  # Initializes skip connection, B, C matrices
-        # A column initialized in super().init_weights(), but now we zero-out
+        super().init_weights()  # Initializes skip connection, A, B, C
+        # A Matrix
         a = torch.zeros(self.n_kernels, self.kernel_dim)
         self.register("a", a, trainable=False, lr=None, wd=None)
         
-        # B Matrix - make it not learnable by default
+        # B Matrix - make it not learnable
         b = torch.zeros(self.n_kernels, self.kernel_dim)
-        b[:, 0] = 1.
+        b[:, 0] = 1
         self.register("b", b, trainable=False, lr=None, wd=None)
         
         # C matrix
         c = self.init_kernel_weights(self.kernel_init)
         self.register("c", c, trainable=True, lr=None, wd=None)
-    
-    def forward(self, u):
-        return super().forward(u)
+        
+        # K matrix
+        k = self.init_kernel_weights(self.kernel_init)
+        self.register("k", k, trainable=True, lr=None, wd=None)
+        
+    def get_companion_matrix(self, p):
+        # Construct "companion" matrix
+        return self.shift_matrix.to(p.device)
