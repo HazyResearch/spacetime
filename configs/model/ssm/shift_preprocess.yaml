@@ -1,10 +1,10 @@
 method: shift
 kwargs:
   model_dim: 128
-  n_kernels: 128
+  n_kernels: 16
   kernel_dim: 64
   kernel_repeat: 1
-  n_heads: 1
+  n_heads: 8
   head_dim: 1
   kernel_weights: null
   kernel_init: normal
