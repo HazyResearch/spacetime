@@ -25,6 +25,7 @@ def initialize_args():
     parser.add_argument('--activation', type=str, choices=['gelu', 'relu'])
     parser.add_argument('--dropout', type=float, default=None)
     parser.add_argument('--layernorm', action='store_true', default=None)
+    parser.add_argument('--norm_order', type=int, default=None)
 
     # SSM
     parser.add_argument('--kernel_init', type=str, default=None)
@@ -55,7 +56,8 @@ def initialize_args():
                         help="Number of samples included in input. If 0, then can change?") 
     parser.add_argument('--horizon', type=int, default=1)
     parser.add_argument('--loss', type=str, default='rmse',
-                        choices=['rmse', 'mse', 'mae', 'cross_entropy'])
+                        choices=['rmse', 'mse', 'mae', 'rse', 'cross_entropy',
+                                 'informer_rmse', 'informer_mse', 'informer_mae'])
     
     # Training
     parser.add_argument('--criterion_weights', nargs='+')  # Convert to float after setup.experiment.initialize_experiment
