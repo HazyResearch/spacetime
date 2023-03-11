@@ -13,14 +13,14 @@ def print_header(x, border='both'):
     print('-' * len(x))
     
     
-def print_args(args, return_dict=False):
+def print_args(args, return_dict=False, verbose=True):
     attributes = [a for a in dir(args) if a[0] != '_']
     arg_dict = {}  # switched to ewr
-    print('ARGPARSE ARGS')
+    if verbose: print('ARGPARSE ARGS')
     for ix, attr in enumerate(attributes):
         # fancy = '└──' if ix == len(attributes) - 1 else '├──'
         fancy = '└─' if ix == len(attributes) - 1 else '├─'
-        print(f'{fancy} {attr}: {getattr(args, attr)}')
+        if verbose: print(f'{fancy} {attr}: {getattr(args, attr)}')
         arg_dict[attr] = getattr(args, attr)
     if return_dict:
         return arg_dict

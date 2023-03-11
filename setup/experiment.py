@@ -46,9 +46,9 @@ def initialize_experiment(args, experiment_name_id='',
     try:
         args.criterion_weights = '+'.join(args.criterion_weights)
     except:
-        args.criterion_weights = '1_1_1'
+        args.criterion_weights = '1+1+1'
     for arg in ['embedding_config', 'preprocess_config', 'encoder_config', 'decoder_config', 'output_config', 
-                'n_blocks', 'n_kernels', 'n_heads', 'kernel_dim', 'kernel_init', 'lag', 'horizon', 
+                'n_blocks', 'n_kernels', 'n_heads', 'kernel_dim', 'kernel_init', 'norm_order', 'lag', 'horizon', 
                 'data_transform', 'criterion_weights', 'loss', 'dropout', 'lr', 'optimizer', 'scheduler', 
                 'weight_decay', 'batch_size', 'val_metric', 'max_epochs', 'early_stopping_epochs', 'replicate']:
         args.experiment_name += f'-{format_arg(arg)}={format_arg(getattr(args, arg), cutoff=None)}'
@@ -71,10 +71,6 @@ def initialize_experiment(args, experiment_name_id='',
                                            f'bval-{args.experiment_name}.pth')
     # Logging
     project_name = f'spacetime-d={dataset_name}-f={args.features}-horizon={args.horizon}'
-    if args.dataset_type == 'grokking':
-        for arg in ['vocab_size', 'num_examples', 'input_seq_len']:
-            project_name += f'-{format_arg(arg)}={format_arg(getattr(args, arg), cutoff=None)}'
-            args.experiment_name += f'-{format_arg(arg)}={format_arg(getattr(args, arg), cutoff=None)}'
     
     if not args.no_wandb:
         import wandb

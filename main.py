@@ -26,7 +26,6 @@ from model.network import SpaceTime
 def main():
     print_header('*** EXPERIMENT ARGS ***')
     args = initialize_args()
-    args.max_epochs = args.max_epochs * 10  # Hacks
     seed_everything(args.seed)
     experiment_configs = load_main_config(args, config_dir='./configs')
     
@@ -77,15 +76,6 @@ def main():
     model.set_lag(args.lag)
     model.set_horizon(args.horizon)
     
-    if args.verbose:
-        print(model)
-        print_header('*** MODEL ***')
-        print_config(model_configs)
-        
-        from einops import rearrange
-        print_header('└── Preprocessing kernels:')
-        print(model.encoder.blocks[0].pre.get_kernel(rearrange(x, '(o l) d -> o d l', o=1)))
-    
     # Initialize optimizer and scheduler
     optimizer = get_optimizer(model, experiment_configs['optimizer'])
     scheduler = get_scheduler(model, optimizer, 
@@ -95,7 +85,7 @@ def main():
     model_parameters = filter(lambda p: p.requires_grad, model.parameters())
     params = sum([np.prod(p.size()) for p in model_parameters])
     args.model_parameter_count = params
-    arg_dict = print_args(args, return_dict=True)
+    arg_dict = print_args(args, return_dict=True, verbose=args.verbose)
     
     # Setup logging
     wandb = initialize_experiment(args, experiment_name_id='',
@@ -105,6 +95,18 @@ def main():
         pd.DataFrame.from_dict(arg_dict).to_csv(args.log_configs_path)
     except:
         pd.DataFrame.from_dict([arg_dict]).to_csv(args.log_configs_path)
+        
+    if args.verbose:
+        print_header('*** MODEL ***')
+        print(model)
+        print_config(model_configs)
+        
+        from einops import rearrange
+        _k = model.encoder.blocks[0].pre.get_kernel(rearrange(x, '(o l) d -> o d l', o=1))
+        _k_diff = model.encoder.blocks[0].pre.diff_kernel
+        _k_ma_r = model.encoder.blocks[0].pre.ma_r_kernel
+        print_header(f'──> Preprocessing kernels (full: {_k.shape}, diff: {_k_diff.shape}, ma: {_k_ma_r.shape})')
+        print(_k[:16, :_k_ma_r.shape[-1]])
                      
     
     print_header(f'*** TRAINING ***')
@@ -117,7 +119,7 @@ def main():
     print(f'├── Logging to: {args.log_results_path}')
     
     # Loss objectives
-    criterions = {name: get_loss(name) for name in ['rmse', 'mse', 'mae']}
+    criterions = {name: get_loss(name) for name in ['rmse', 'mse', 'mae', 'rse']}
     eval_criterions = criterions
     for name in ['rmse', 'mse', 'mae']:
         eval_criterions[f'informer_{name}'] = get_loss(f'informer_{name}')
