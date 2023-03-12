@@ -74,7 +74,7 @@ def shared_step(model, dataloader, optimizer, scheduler, criterions, epoch,
             w0, w1, w2 = config.criterion_weights
             loss = torch.mean(w0 * criterions[config.loss](
                 y_c, y_t[:, model.lag:, :].to(config.device)))
-                
+
             if not model.inference_only:
                 # Open-loop output supervision,
                 # -> Offset by 1 bc next time-step prediction
@@ -85,7 +85,6 @@ def shared_step(model, dataloader, optimizer, scheduler, criterions, epoch,
                 z_c, z_t = z_pred
                 loss += torch.mean(w2 * criterions[config.loss](z_c[:, model.kernel_dim-1:-1, :],
                                                                 z_t[:, model.kernel_dim:, :]))
-                
             if grad_enabled:
                 loss.backward()
                 optimizer.step()
@@ -155,4 +154,4 @@ def shared_step(model, dataloader, optimizer, scheduler, criterions, epoch,
             metrics[k] = metric
             
     model.cpu()
-    return model, metrics, total_y 
+    return model, metrics, total_y

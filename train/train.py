@@ -73,7 +73,7 @@ def train_model(model, optimizer, scheduler, dataloaders_by_split,
             dataset_name = config.dataset if config.variant is None else f'{config.dataset}{config.variant}'
             print(f'Dataset:    {dataset_name}')
             print(f'Experiment: {config.experiment_name}')
-        
+
         if wandb is not None:
             log_metrics = {}
             for split in metrics.keys():

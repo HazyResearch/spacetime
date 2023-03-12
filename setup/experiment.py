@@ -96,5 +96,4 @@ def initialize_experiment(args, experiment_name_id='',
     
     # Loss weights
     args.criterion_weights = [float(w) for w in args.criterion_weights.split('+')]
-    
     return wandb

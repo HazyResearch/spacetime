@@ -32,7 +32,6 @@ def load_model_config(config, config_dir='./configs/model', args=None):
 
 
 def update_embedding_config_from_args(config, args):
-    
     n_heads, head_dim = update_n_heads(config.embedding_config, args)
         
     if args.n_heads is not None:
@@ -73,8 +72,6 @@ def update_block_config_from_args(config, args):
     #   then add (args.n_blocks - 1) copies of an updated block
     
     # Update first block preprocess_config
-    # config.encoder_config['blocks'][0].pre_config = update_preprocess_config_from_args(
-    #     config.encoder_config['blocks'][0].pre_config, args)
     encoder_block = config.encoder_config['blocks'][0]
     if args.input_dim > 1:
         _config = encoder_block.pre_config
@@ -90,22 +87,6 @@ def update_block_config_from_args(config, args):
                                     _config.kwargs.n_kernels * _config.kwargs.kernel_repeat)
     encoder_block.mlp_config = update_mlp_config_from_args(encoder_block.mlp_config, args,
                                                            input_dim=_config.kwargs.model_dim if args.input_dim > 1 else None)
-    
-    # update_mlp_config_from_args(config, args, 
-    #                             input_dims=True, output_dims=True, 
-    #                             input_dim=None, output_dim=None)
-    
-    
-    # encoder_block = config.encoder_config['blocks'][1]
-    # if args.input_dim > 1:
-    #     _config = encoder_block.pre_config
-    #     _config.kwargs.head_dim = args.input_dim
-    #     _config.kwargs.model_dim = (args.input_dim * _config.kwargs.n_kernels * 
-    #                                 _config.kwargs.kernel_repeat)
-    # encoder_block.pre_config = update_preprocess_config_from_args(encoder_block.pre_config, args)
-    # if args.replicate != 2:
-    #     encoder_block.ssm_config = update_ssm_config_from_args(encoder_block.ssm_config, args)
-    # encoder_block.mlp_config = update_mlp_config_from_args(encoder_block.mlp_config, args)
     
     # Update remaining blocks
     encoder_block = config.encoder_config['blocks'][-1]
@@ -144,10 +125,6 @@ def update_decoder_block(decoder_block, args):
 
 
 def update_preprocess_config_from_args(config, args):
-    # if args.input_dim > 1:
-    #     config.kwargs.head_dim = args.input_dim
-    #     model_dim = (args.input_dim * config.kwargs.n_kernels * 
-    #                  config.kwargs.kernel_repeat)
     if args.model_dim is not None:
         model_dim = args.model_dim
     else:
@@ -160,8 +137,6 @@ def update_preprocess_config_from_args(config, args):
                                        config.kwargs.head_dim),
         'seed': args.seed
     }
-    # if 'max_avg_window' in config.kwargs:
-    #     kwargs['max_avg_window'] = args.lag
         
     for k, v in kwargs.items():
         if v is not None:
@@ -210,8 +185,6 @@ def get_companion_ssm_kwargs_from_args(config, args):
 
 
 def update_n_heads(config, args):
-    # if args.input_dim > 1:
-    #     head_dim = args.input_dim
     if 'head_dim' in config.kwargs:
         head_dim = args.input_dim if config.kwargs.head_dim != 1 else 1
     else:
@@ -229,9 +202,6 @@ def update_n_heads(config, args):
 def update_n_kernels(config, args, n_heads):
     model_dim = (args.model_dim if args.model_dim is not None 
                  else config.kwargs.model_dim)
-    
-    # if args.input_dim > 1:
-    #     config.kwargs.head_dim = args.input_dim
 
     if n_heads == 1:
         n_kernels = model_dim // config.kwargs.head_dim

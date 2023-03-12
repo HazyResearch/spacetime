@@ -77,7 +77,7 @@ class MLP(nn.Module):
             n_activations_to_init -= 1
             
         self.layers = nn.Sequential(*layers)
-        
+
         
     def init_dropout(self):
         if self.dropout > 1:  # Dropout hack for now, testing DropoutNd

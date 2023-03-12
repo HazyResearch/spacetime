@@ -113,7 +113,6 @@ class ClosedLoopCompanionSSM(CompanionSSM):
                 u = rearrange(u, 'b d l -> b l d')
             else:
                 u = None
-
             # Layer outputs, and next-time-step layer inputs
             return y, u
         

@@ -72,6 +72,7 @@ def main():
     model_configs['inference_only'] = False
     model_configs['lag'] = args.lag
     model_configs['horizon'] = args.horizon
+    
     if args.features == 'M':  # Update output
         update_output_config_from_args(model_configs['output_config'], args,
                                        update_output_dim=True, output_dim=output_dim)
@@ -166,4 +167,3 @@ def main():
     
 if __name__ == '__main__':
     main()
-
