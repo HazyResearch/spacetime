@@ -2,10 +2,12 @@
 Basic neural net components
 
 OurModule from: https://github.com/HazyResearch/state-spaces/blob/main/src/models/sequence/ss/kernel.py (OptimModule)
-Activation from: https://github.com/HazyResearch/state-spaces/blob/main/src/models/nn/components.py
+Activation and DropoutND from: https://github.com/HazyResearch/state-spaces/blob/main/src/models/nn/components.py
 """
-
+import torch
 import torch.nn as nn
+
+from einops import rearrange
 
 
 class OurModule(nn.Module):
@@ -51,3 +53,28 @@ def Activation(activation=None, size=None, dim=-1, inplace=False):
         return nn.Sigmoid(inplace)
     else:
         raise NotImplementedError("hidden activation '{}' is not implemented".format(activation))
+        
+        
+class DropoutNd(nn.Module):
+    def __init__(self, p: float = 0.5, tie=True, transposed=True):
+        """
+        tie: tie dropout mask across sequence lengths (Dropout1d/2d/3d)
+        """
+        super().__init__()
+        if p < 0 or p >= 1:
+            raise ValueError("dropout probability has to be in [0, 1), " "but got {}".format(p))
+        self.p = p
+        self.tie = tie
+        self.transposed = transposed
+        self.binomial = torch.distributions.binomial.Binomial(probs=1-self.p)
+
+    def forward(self, x):
+        """ x: (batch, lengths..., dim) """
+        if self.training:
+            if self.transposed: x = rearrange(x, 'b ... d -> b d ...')
+            mask_shape = x.shape[:2] + (1,)*(x.ndim-2) if self.tie else x.shape
+            mask = torch.rand(*mask_shape, device=x.device) < 1.-self.p
+            x = x * mask * (1.0/(1-self.p))
+            if self.transposed: x = rearrange(x, 'b d ... -> b ... d')
+            return x
+        return x

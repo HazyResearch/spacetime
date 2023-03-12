@@ -1,7 +1,7 @@
 import torch.nn as nn
 
 from einops import rearrange
-from model.components import Activation
+from model.components import Activation, DropoutNd
 
 
 def init_mlp(config):
@@ -34,8 +34,8 @@ class MLP(nn.Module):
         self.output_dim    = output_dim
         self.input_shape   = input_shape
         
-        self.activation      = Activation(activation, inplace=True)
-        self.dropout         = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
+        self.activation      = activation
+        self.dropout         = dropout
         self.layernorm       = nn.LayerNorm(input_dim) if layernorm else nn.Identity()
         self.n_layers        = n_layers
         self.n_activations   = n_activations
@@ -49,12 +49,15 @@ class MLP(nn.Module):
         n_layers_to_init = self.n_layers
         n_activations_to_init = self.n_activations
         
-        if self.hidden_dim is None:  # Probs not great, but implicitly handle
-            self.hidden_dim = self.output_dim
+        if self.hidden_dim is None:
+            if self.n_layers < 2:
+                self.hidden_dim = self.output_dim
+            else:
+                self.hidden_dim = self.input_dim
             
         # Add layers
         if self.n_activations > self.n_layers or self.pre_activation:
-            layers = [self.activation]
+            layers = [Activation(self.activation, inplace=True), self.init_dropout()]
             n_activations_to_init -= 1
         else:
             layers = []
@@ -68,12 +71,22 @@ class MLP(nn.Module):
                 layers.append(nn.Linear(self.hidden_dim, self.output_dim))
             
             if n_activations_to_init > 0:
-                layers.append(self.activation)
+                layers.append(Activation(self.activation, inplace=True))
             
             n_layers_to_init -= 1
             n_activations_to_init -= 1
             
         self.layers = nn.Sequential(*layers)
+        
+        
+    def init_dropout(self):
+        if self.dropout > 1:  # Dropout hack for now, testing DropoutNd
+            return DropoutNd(p=self.dropout-1.)
+        elif self.dropout > 0:
+            return nn.Dropout(self.dropout)
+        else:
+            return nn.Identity()
+        
         
     def forward(self, x):
         x = self.layernorm(x)
@@ -86,8 +99,6 @@ class MLP(nn.Module):
             x = self.layers(x) + x  
         else: 
             x = self.layers(x)
-        
-        x = self.dropout(x)
         
         if self.average_pool == 'l':
             x = x.mean(dim=1, keepdim=True)
