@@ -43,11 +43,11 @@ class ResidualSSM(SSM):
         return kernel
     
     def init_moving_average_weights(self):
-        ma_window = torch.randint(low=self.min_avg_window, 
-                                  high=self.max_avg_window,  # self.kernel_dim
+        ma_window = torch.randint(low=self.min_avg_window,
+                                  high=self.max_avg_window,
                                   size=(1, self.n_ma_kernels))
         # Compute moving average kernel 
-        max_window = ma_window.max().item()
+        max_window = self.max_avg_window
         kernel = torch.zeros(self.n_ma_kernels, max_window)
         kernel[:, 0] = 1.
         
@@ -63,27 +63,18 @@ class ResidualSSM(SSM):
         """
         b, d, l = u.shape
         l = max(l, self.diff_kernel.shape[1])
-        # max_window = min(self.max_avg_window, l)
-        # moving_avg = (1. / torch.clamp(torch.round(self.ma_window), 
-        #                                min=self.min_avg_window, 
-        #                                max=max_window).T)
         # Pad kernels to input length
         diff_kernel = F.pad(self.diff_kernel, (0, l - self.diff_kernel.shape[1]), 'constant', 0)
         ma_r_kernel = F.pad(self.ma_r_kernel, (0, l - self.ma_r_kernel.shape[1]), 'constant', 0)
         
         # Combine kernels
-        diff_kernel = rearrange(diff_kernel, '(kr nk) kd -> kr nk kd', kr=self.kernel_repeat)
-        ma_r_kernel = rearrange(ma_r_kernel, '(kr nk) kd -> kr nk kd', kr=self.kernel_repeat)
+        diff_kernel = rearrange(diff_kernel, '(kr nk) kd -> kr nk kd', 
+                                kr=self.kernel_repeat)
+        ma_r_kernel = rearrange(ma_r_kernel, '(kr nk) kd -> kr nk kd', 
+                                kr=self.kernel_repeat)
         
         kernel = torch.cat([diff_kernel, ma_r_kernel], dim=1)
-        kernel = rearrange(kernel, 'kr nk kd -> (kr nk) kd')
-        
-        # # Compute moving average kernel 
-        # ma_r_kernel = torch.zeros(*diff_kernel.shape).to(moving_avg.device)
-        # ma_r_kernel[:, 0] = 1.
-        # ma_r_kernel[:, :max_window] -= moving_avg
-        # Combine kernels
-        # kernel = rearrange([diff_kernel, ma_r_kernel], 'r nk kd -> (nk r) kd')  # Intersperse
+        kernel = repeat(kernel, 'kr nk kd -> (kr nk hd) kd', hd=self.head_dim)
         return kernel
     
     def forward(self, u):
