@@ -29,13 +29,11 @@ class ClosedLoopCompanionSSM(CompanionSSM):
         self.horizon = horizon
         self.use_initial = use_initial  # When False, assumes initial hidden_state x_0 = 0. True not implemented
         self.closed_loop = True         # Toggle closed or open-loop forward pass, see self.forward
-        self.inference_only = False     # Toggle different behavior during training and test, see self.get_kernel
+        self.inference_only = False     # Toggle different behavior during training and test
         kwargs['kernel_repeat'] = 1
         kwargs['kernel_weights'] = None
         kwargs['kernel_train'] = True
         kwargs['skip_connection'] = False
-        # Set kwargs['n_heads'] as n_kernels for preprocessing kernels if tie_weights else arbitrary?
-        # Set kwargs['head_dim'] to be original sample input dim
         super().__init__(**kwargs)
         
     def init_kernel_weights(self, kernel_init):
@@ -72,36 +70,6 @@ class ClosedLoopCompanionSSM(CompanionSSM):
         y   = torch.fft.irfft(y_f, n=2*L, dim=2)[:, :, :L, :] # (B H L D)
         return y
     
-    def get_kernel(self, u, a, l):
-        # Handles several cases:
-        # 1. Inference only (i.e., not training) and closed-loop,
-        # 2. Not inference only (i.e., during training) and closed-loop
-        # 3. Not inference only and open-loop
-        
-        if self.inference_only and self.closed_loop:
-            # Only return kernel for final model output predictions, i.e.,
-            # Krylov matrix (CB, CAB, CA^2B, ... CA^{l + h - 1}B) 
-            # where C is self.c, A is a = A + BK (should be calculated before method call)
-            k_y = krylov(l, a, self.b, self.c).to(u.device)  # Use repeated squares to power A
-            k_u = None
-            
-        elif not self.inference_only and self.closed_loop:
-            # Return both final output kernel (k_y) and next-time-step input kernel (k_u), i.e.,
-            # both C(A + BK)^{n}B and K(A + BK)^{n}B
-            k = krylov(l, a, self.b, c=None).to(u.device)
-            k_y = torch.einsum('...nl, ...n -> ...l', k, self.c).contiguous()
-            k_u = torch.einsum('...nl, ...n -> ...l', k, self.k).contiguous()
-            
-        elif self.inference_only and not self.closed_loop:
-            raise NotImplementedError  # Never happens
-        
-        elif not self.inference_only and not self.closed_loop:
-            # Return CA^{n}B where A = a is computed companion matrix from self.a
-            k_y = krylov(l, a, self.b, self.c).to(u.device)
-            k_u = None
-            
-        return k_y, k_u
-    
     def forward(self, u):
         """
         During training, call this function twice to compute closed-loop and open-loop
@@ -115,8 +83,8 @@ class ClosedLoopCompanionSSM(CompanionSSM):
         # alternatively could normalize A + BK below 
         a = (self.norm(self.a, ord=self.norm_order) 
              if self.norm_order > 0 else self.a)
-        # a = self.a
         A = self.get_companion_matrix(a)
+        
         if self.closed_loop:  # Compute closed-loop forecast
             # Compute hidden state 
             # -> x_lag = \sum_{i = 0}^{lag - 1} A^{lag - 1 - i}B u_i
@@ -124,59 +92,49 @@ class ClosedLoopCompanionSSM(CompanionSSM):
             x = self.fft_conv_d(u, k_x)  # shape: B x H x L x D
             
             # Compute A + BK matrix
-            b = self.norm(self.b, ord=self.norm_order)
-            k = self.norm(self.k, ord=self.norm_order)
+            b = (self.norm(self.b, ord=self.norm_order) 
+                 if self.norm_order > 0 else self.b)
+            k = (self.norm(self.k, ord=self.norm_order) 
+                 if self.norm_order > 0 else self.b)
             A_BK = A + oe.contract('h i, h j -> h i j', b, k)
-            # A_BK = self.norm(A_BK, ord=self.norm_order)
             
             # Rollout: Compute C(A + BK)^{h} * x_lag and K(A + BK)^{h} * x_lag
+            # First compute hidden state
             x = krylov(l_horizon, A_BK, x[:, :, -1, :], c=None)
-            # c = self.norm(self.c, ord=self.norm_order)
-            c = self.c
+            
+            # Compute predictions for layer output
+            c = self.norm(self.c, ord=self.norm_order) if self.norm_order > 0 else self.c
             y = torch.einsum('...nl, ...n -> ...l', x, c).contiguous()
             y = rearrange(y, 'b d l -> b l d')
             
+            # Compute predictions for layer next-time-step input (prior layer next-time-step output)
             if not self.inference_only and self.closed_loop:
                 u = torch.einsum('...nl, ...n -> ...l', x, self.k).contiguous()
                 u = rearrange(u, 'b d l -> b l d')
             else:
                 u = None
 
-            return y, u
-            
-            # Get input, which is just zeros except first time-step
-            # We pad only last dim on right, bc u.shape is B x D x L now
-            zero_pad = (0, l + l_horizon - 1, 0, 0, 0, 0)  # Supervised with y[1], ... , y[L + H]
-            u_horizon = F.pad(u[:, :, :1], zero_pad, mode='constant', value=0)
-            
-            # Get A + BK matrix
-            b = self.norm(self.b, ord=self.norm_order)
-            k = self.norm(self.k, ord=self.norm_order)
-            A_BK = A + oe.contract('h i, h j -> h i j', b, k)
-            # A_BK = self.norm(A_BK, ord=self.norm_order)
-            
-            # Get kernels for output and next-step input
-            k_horizons = self.get_kernel(u_horizon, a=A_BK, l=l+l_horizon)
-            k_horizons = [repeat(k, 'nk kd -> (kr nk nh hd) kd', 
-                                 kr=self.kernel_repeat, nh=self.n_heads,
-                                 hd=self.head_dim)
-                          for k in k_horizons if k is not None]
-            y = [None, None]  # layer outputs, and next-time-step layer inputs
-            for kix, k in enumerate(k_horizons):
-                y[kix] = rearrange(self.fft_conv(u_horizon, k),
-                                   'b d l -> b l d')
             # Layer outputs, and next-time-step layer inputs
-            return y[0], y[1]  # shape is B x (L + H) x D if not None
-        else:
-            # Compute open-loop forecast up to L
+            return y, u
+        
+        else:  # Compute open-loop forecast up to L
             # A = self.norm(A, ord=self.norm_order)
             # Return CA^{n}B where A = a is computed companion matrix from self.a
-            b = self.norm(self.b, ord=self.norm_order)
-            k = krylov(l, A, b, self.c).to(u.device)
-            # k_u = None
-            # k = self.get_kernel(u, a=A, l=l)[0]
+            b = (self.norm(self.b, ord=self.norm_order) 
+                 if self.norm_order > 0 else self.b)
+            c = self.norm(self.c, ord=self.norm_order) if self.norm_order > 0 else self.c
+            k = krylov(l, A, b, c).to(u.device)
             k = repeat(k, 'nk kd -> (kr nk nh hd) kd', 
                        kr=self.kernel_repeat, nh=self.n_heads, hd=self.head_dim)
             y = rearrange(self.fft_conv(u, k), 'b d l -> b l d')
-            return y, None  # shape is B x L x D
+            
+            if not self.inference_only:
+                _k  = self.norm(self.k, ord=self.norm_order)
+                k_u = krylov(l, A, b, _k).to(u.device)
+                k_u = repeat(k_u, 'nk kd -> (kr nk nh hd) kd', 
+                             kr=self.kernel_repeat, nh=self.n_heads, hd=self.head_dim)
+                y_u = rearrange(self.fft_conv(u, k_u), 'b d l -> b l d')
+            else:
+                y_u = None
+            return y, y_u
         
