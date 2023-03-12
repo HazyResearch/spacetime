@@ -28,7 +28,6 @@ def main():
     print_header('*** EXPERIMENT ARGS ***')
     args = initialize_args()
     seed_everything(args.seed)
-    args.max_epochs = args.max_epochs * 5
     experiment_configs = load_main_config(args, config_dir='./configs')
     
     load_data, visualize_data = initialize_data_functions(args)
