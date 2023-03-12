@@ -69,8 +69,10 @@ def train_model(model, optimizer, scheduler, dataloaders_by_split,
             early_stopping_count += 1
             
         if (epoch + 1) % config.log_epoch == 0:
-            print(config.experiment_name)
             print_epoch_metrics(metrics)
+            dataset_name = config.dataset if config.variant is None else f'{config.dataset}{config.variant}'
+            print(f'Dataset:    {dataset_name}')
+            print(f'Experiment: {config.experiment_name}')
         
         if wandb is not None:
             log_metrics = {}

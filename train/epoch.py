@@ -64,12 +64,11 @@ def save_checkpoint(model, optimizer, config, epoch, split,
         if (better_metric(run_val_metric, best_val_metric, val_metric) or epoch == 0):
             setattr(config, f'best_{split}_metric', run_val_metric)
             setattr(config, f'best_{split}_metric_epoch', epoch)
-            config.best_val_metric = run_val_metric
-            config.best_val_metric_epoch = epoch
             torch.save({'epoch': epoch,
                         'val_metric': run_val_metric,
                         'state_dict': model.state_dict(),
                         'optimizer_state_dict': optimizer.state_dict()
                        }, checkpoint_path)
+            print(f'-> New best {split} {val_metric} at epoch {epoch}! ({split} {val_metric}: {run_val_metric:.4f})')
     except Exception as e:
         print(e)

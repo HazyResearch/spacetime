@@ -68,36 +68,23 @@ def shared_step(model, dataloader, optimizer, scheduler, criterions, epoch,
                       for _y in y_pred]
             y_c, y_o = y_pred 
             
-            # y_c = y_c[:, model.lag:, :]
-            # y_c = torch.cat([x[:, :-1, :].to(y_c.device), y_c], dim=1)
-            y_t = torch.cat([x[:, :, :], y], dim=1)  # supervise all time-steps
+            y_t = torch.cat([x, y], dim=1)  # Supervise all time-steps
             
             # Closed-loop supervision
             w0, w1, w2 = config.criterion_weights
-            if model.replicate == 1:
-                loss = torch.mean(w0 * criterions[config.loss](y_c[:, model.kernel_dim-1:-1, :], 
-                                                               y_t[:, model.kernel_dim:, :].to(config.device)))
-            else:
-                # loss = torch.mean(w0 * criterions[config.loss](y_c[:, model.lag-2:-1, :], 
-                #                                                y_t[:, model.lag-1:, :].to(config.device)))
-                loss = torch.mean(w0 * criterions[config.loss](y_c,  # [:, model.lag-1:-1, :], 
-                                                               y_t[:, model.lag:, :].to(config.device)))
+            loss = torch.mean(w0 * criterions[config.loss](
+                y_c, y_t[:, model.lag:, :].to(config.device)))
                 
-            # breakpoint()
             if not model.inference_only:
                 # Open-loop output supervision,
                 # -> Offset by 1 bc next time-step prediction
                 loss += torch.mean(w1 * criterions[config.loss](y_o[:, model.kernel_dim-1:, :],
                                                                 y_t[:, model.kernel_dim:model.lag+1, :].to(config.device)))
-                    
-                    # criterions[config.loss](y_o[:, model.kernel_dim:-1, :], x[:, model.kernel_dim + 1:, :].to(config.device))
                 # Closed-loop next-time-step input supervision
                 # -> Offset by 1 bc next time-step prediction
-                # z_c, z_t = z_pred
-                # z_c = z_c[:, :model.lag, :]
-                # loss += torch.mean(w2 * criterions[config.loss](z_c[:, model.kernel_dim-1:-1, :],
-                #                                                 z_t[:, model.kernel_dim:, :]))
-#                 # breakpoint()
+                z_c, z_t = z_pred
+                loss += torch.mean(w2 * criterions[config.loss](z_c[:, model.kernel_dim-1:-1, :],
+                                                                z_t[:, model.kernel_dim:, :]))
                 
             if grad_enabled:
                 loss.backward()
@@ -110,9 +97,7 @@ def shared_step(model, dataloader, optimizer, scheduler, criterions, epoch,
             u = u.detach().cpu()
             
             # Compute metrics only for horizon terms
-            # y_c_horizon = y_c[:, model.lag-2:-1, :]
             y_c_horizon = y_c
-            # y_t_horizon = y_t[:, model.lag-1:, :]
             y_t_horizon = y_t[:, model.lag:, :]
             
             for k, criterion in criterions.items():
@@ -144,9 +129,10 @@ def shared_step(model, dataloader, optimizer, scheduler, criterions, epoch,
             total_y_true_informer.append(y_t_horizon)  
             
             # Now save raw-scale metrics
-            total_y_true.append(dataloader.dataset.inverse_transform(y_c_horizon))
-            total_y_pred.append(dataloader.dataset.inverse_transform(y_t_horizon))
-                                    
+            total_y_pred.append(dataloader.dataset.inverse_transform(y_c_horizon))
+            total_y_true.append(dataloader.dataset.inverse_transform(y_t_horizon))
+                         
+    # Save predictions and compute aggregate metrics
     total_y_true_informer = torch.cat(total_y_true_informer, dim=0)
     total_y_pred_informer = torch.cat(total_y_pred_informer, dim=0)
     
