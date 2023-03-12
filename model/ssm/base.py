@@ -9,15 +9,16 @@ from model.components import OurModule
 class SSM(OurModule):
     def __init__(self, 
                  model_dim: int, 
-                 n_kernels: int,  # Number of kernels / scales
+                 n_kernels: int,     # Number of kernels / scales
                  kernel_dim: int,
                  kernel_repeat: int,
                  n_heads: int=None,  # Number of heads per kernel
-                 head_dim: int=1, # Dimension of each head
+                 head_dim: int=1,    # Dimension of each head
                  kernel_weights: torch.float=None,
                  kernel_init: str='normal',
                  kernel_train: bool=True,
-                 skip_connection: bool=False):
+                 skip_connection: bool=False,
+                 seed: int=42):
         super().__init__()
         # At least one of these should be int
         assert not (n_heads is None and head_dim is None)
@@ -31,6 +32,9 @@ class SSM(OurModule):
         self.kernel_init     = kernel_init
         self.kernel_train    = kernel_train
         self.skip_connection = skip_connection
+        self.seed = seed
+        self.generator = torch.Generator()
+        self.generator.manual_seed(seed)
         
         self.init_weights()
         
@@ -60,7 +64,7 @@ class SSM(OurModule):
             # lr and wd as None sets them to be same as model lr and weight_decay
             register('k', self.kernel_weights, trainable=True, lr=None, wd=None)
         
-        skip = torch.ones(self.model_dim)
+        skip = torch.randn(self.model_dim)
         self.register('skip', skip, trainable=True, lr=None, wd=None)
     
     def get_kernel(self):

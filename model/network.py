@@ -93,25 +93,18 @@ class SpaceTime(nn.Module):
         # Assume u.shape is (batch x len x dim), 
         # where len = lag + horizon
         z = self.embedding(u)
-        # print('z = self.embedding(u)')
-        # breakpoint()
         z = self.encoder(z)
-        # print('z = self.encoder(z)')
-        # breakpoint()
-        y_c, z_u = self.decoder(z)  # closed-loop
-        # print('y_c, z_u = self.decoder(z)')
-        # breakpoint()
+        y_c, _ = self.decoder(z)  # closed-loop
         y_c = self.output(y_c)
-        # print('y_c = self.output(y_c)')
-        # breakpoint()
-        
-        z_u_pred, z_u_true = z_u
+
         if not self.inference_only:  
             # Also compute outputs via open-loop
             self.set_closed_loop(False)
-            y_o, _ = self.decoder(z)
+            y_o, z_u = self.decoder(z)
             y_o = self.output(y_o)
+            z_u_pred, z_u_true = z_u
         else:
             y_o = None
+            z_u_pred, z_u_true = None, None
         # Return (model outputs), (model last-layer next-step inputs)
         return (y_c, y_o), (z_u_pred, z_u_true)
