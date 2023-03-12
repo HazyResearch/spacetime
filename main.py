@@ -19,6 +19,7 @@ from setup import format_arg, seed_everything
 from setup import initialize_args
 from setup import load_model_config, load_main_config
 from setup import initialize_experiment
+from setup.configs.model import update_output_config_from_args  # For multivariate feature prediction
 
 from model.network import SpaceTime
 
@@ -27,6 +28,7 @@ def main():
     print_header('*** EXPERIMENT ARGS ***')
     args = initialize_args()
     seed_everything(args.seed)
+    args.max_epochs = args.max_epochs * 5
     experiment_configs = load_main_config(args, config_dir='./configs')
     
     load_data, visualize_data = initialize_data_functions(args)
@@ -54,6 +56,7 @@ def main():
     # Setup input_dim based on features
     x, y, *z = train_loader.dataset.__getitem__(0)
     args.input_dim = x.shape[1]  # L x D
+    output_dim = y.shape[1]
     
     # Initialize Model
     args.device = (torch.device('cuda:0') 
@@ -70,6 +73,12 @@ def main():
     model_configs['inference_only'] = False
     model_configs['lag'] = args.lag
     model_configs['horizon'] = args.horizon
+    if args.features == 'M':  # Update output
+        update_output_config_from_args(model_configs['output_config'], args,
+                                       update_output_dim=True, output_dim=output_dim)
+        model_configs['output_config'].input_dim = model_configs['output_config'].kwargs.input_dim
+        model_configs['output_config'].output_dim = model_configs['output_config'].kwargs.output_dim  
+        print(model_configs['output_config'])
     
     model = SpaceTime(**model_configs)
     model.replicate = args.replicate  # Only used for testing specific things indicated by replicate
