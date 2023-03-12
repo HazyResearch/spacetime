@@ -1,5 +1,5 @@
 # SpaceTime 🌌⏱️
-Code for SpaceTime, a neural net for time series. Inspired by state-*space*s for *time* series modeling.
+Code for SpaceTime, a neural net for time series. Inspired by state-**space**s for **time** series modeling.
 
 Cousin of S4, S4D, DSS, and H3. Descendent of LSSL. Expressive autoregressive modeling + fast flexible decoding (forecasting) ftw. 
 
@@ -15,15 +15,28 @@ conda env create -f environment.yml
 conda activate spacetime
 ```
 
-Data for the Informer benchmark is provided in `./dataloaders/data/informer/`. It can also be downloaded from [https://github.com/zhouhaoyi/ETDataset](https://github.com/zhouhaoyi/ETDataset).
+Data for the Informer benchmark can be downloaded from [https://github.com/zhouhaoyi/ETDataset](https://github.com/zhouhaoyi/ETDataset). The data exists as CSV files, whcih should be saved in the directory `./dataloaders/data/informer/`, e.g., `./dataloaders/data/informer/etth/ETTh1.csv`.
 
 ## Sample Commands  
 
 ### Informer
 
+**ETTh1 720**  
 ```
-# ETTh1 720
-python main.py --dataset etth1 --lag 336 --horizon 720 --embedding_config embedding/repeat --encoder_config encoder/default --decoder_config decoder/default --output_config output/default --lr 1e-3 --weight_decay 5e-4 --max_epochs 100 --data_transform mean --seed 0 --criterion_weights 1 1 1 --verbose
+python main.py --dataset etth1 --lag 336 --horizon 720 --embedding_config embedding/repeat --encoder_config encoder/default --decoder_config decoder/default --output_config output/default --n_blocks 1 --kernel_dim 64 --norm_order 1 --batch_size 50 --dropout 0.25 --lr 1e-3 --weight_decay 1e-4 --max_epochs 500 --data_transform mean --loss informer_rmse --val_metric informer_rmse --criterion_weights 1 1 1 --seed 0 
+```
 
-python main_spacecat_2.py --dataset etth1 --lag 720 --horizon 720 --criterion_weights 100 100 100 10 1 10 10 1 10 --n_blocks 4 --n_heads 128 --kernel_init xavier --normalize_c 1 --tie_weights --start_ix 0 --task_norm mean_lag --no_initial
+**ETTh2 720**  
+```
+python main.py --dataset etth2 --lag 336 --horizon 720 --embedding_config embedding/repeat --encoder_config encoder/default --decoder_config decoder/default --output_config output/default --n_blocks 1 --kernel_dim 64 --norm_order 1 --batch_size 50 --dropout 0.25 --lr 1e-3 --weight_decay 1e-4 --max_epochs 500 --data_transform mean --loss informer_rmse --val_metric informer_rmse --criterion_weights 1 1 1 --seed 0 
+```
+
+**ETTm1 720**  
+```
+python main.py --dataset ettm1 --lag 336 --horizon 720 --embedding_config embedding/repeat --encoder_config encoder/default --decoder_config decoder/default --output_config output/default --n_blocks 1 --kernel_dim 64 --norm_order 1 --batch_size 50 --dropout 0.25 --lr 1e-3 --weight_decay 1e-4 --max_epochs 500 --data_transform mean --loss informer_rmse --val_metric informer_rmse --criterion_weights 1 1 1 --seed 0 
+```
+
+**ETTm2 720**  
+```
+python main.py --dataset ettm2 --lag 336 --horizon 720 --embedding_config embedding/repeat --encoder_config encoder/default --decoder_config decoder/default --output_config output/default --n_blocks 1 --kernel_dim 64 --norm_order 1 --batch_size 50 --dropout 0.25 --lr 1e-3 --weight_decay 1e-4 --max_epochs 500 --data_transform mean --loss informer_rmse --val_metric informer_rmse --criterion_weights 1 1 1 --seed 0 
 ```
