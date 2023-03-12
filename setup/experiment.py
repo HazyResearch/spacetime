@@ -63,6 +63,7 @@ def initialize_experiment(args, experiment_name_id='',
     checkpoint_dir = join(args.checkpoint_dir, args.dataset_name)
     if not os.path.isdir(checkpoint_dir):
         os.makedirs(checkpoint_dir)
+        print(f'-> Created model checkpoint saving directory at {checkpoint_dir}!')
     args.checkpoint_dir = checkpoint_dir
     
     args.best_train_checkpoint_path = join(args.checkpoint_dir, 

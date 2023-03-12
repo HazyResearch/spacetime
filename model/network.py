@@ -94,15 +94,17 @@ class SpaceTime(nn.Module):
         # where len = lag + horizon
         z = self.embedding(u)
         z = self.encoder(z)
-        y_c, _ = self.decoder(z)  # closed-loop
-        y_c = self.output(y_c)
+        y_c, _ = self.decoder(z)  
+        y_c = self.output(y_c)  # y_c is closed-loop output
 
         if not self.inference_only:  
             # Also compute outputs via open-loop
             self.set_closed_loop(False)
             y_o, z_u = self.decoder(z)
-            y_o = self.output(y_o)
-            z_u_pred, z_u_true = z_u
+            y_o = self.output(y_o)    # y_o is "open-loop" output
+            # Prediction and "ground-truth" for next-time-step 
+            # layer input (i.e., last-layer output)
+            z_u_pred, z_u_true = z_u  
         else:
             y_o = None
             z_u_pred, z_u_true = None, None

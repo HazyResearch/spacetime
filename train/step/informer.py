@@ -62,13 +62,14 @@ def shared_step(model, dataloader, optimizer, scheduler, criterions, epoch,
 
             # Return (model outputs), (model last-layer next-step inputs)
             y_pred, z_pred = model(u)
-            # (y_c, y_o) = y_pred
-            # (z_u_pred, z_u_true) = z_pred
+            # y_pred is closed-loop (y_c) and open-loop (y_o) model output predictions
+            # i.e., (y_c, y_o) = y_pred
             y_pred = [output_transform(_y) if _y is not None else _y 
                       for _y in y_pred]
             y_c, y_o = y_pred 
-            
             y_t = torch.cat([x, y], dim=1)  # Supervise all time-steps
+            
+            
             
             # Closed-loop supervision
             w0, w1, w2 = config.criterion_weights
@@ -82,8 +83,8 @@ def shared_step(model, dataloader, optimizer, scheduler, criterions, epoch,
                                                                 y_t[:, model.kernel_dim:model.lag+1, :].to(config.device)))
                 # Closed-loop next-time-step input supervision
                 # -> Offset by 1 bc next time-step prediction
-                z_c, z_t = z_pred
-                loss += torch.mean(w2 * criterions[config.loss](z_c[:, model.kernel_dim-1:-1, :],
+                z_p, z_t = z_pred  # z_pred is prediction (z_p) and "ground-truth" (z_t) for next-time-step layer input
+                loss += torch.mean(w2 * criterions[config.loss](z_p[:, model.kernel_dim-1:-1, :],
                                                                 z_t[:, model.kernel_dim:, :]))
             if grad_enabled:
                 loss.backward()

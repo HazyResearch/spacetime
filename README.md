@@ -11,7 +11,7 @@ Proposed in Effectively Modeling Time Series with Simple Discrete State Spaces, 
 
 We recommend creating a virtual environment with `conda`:  
 ```
-conda env create -f environment.yml
+conda env create -f environment.yaml
 conda activate spacetime
 ```
 
