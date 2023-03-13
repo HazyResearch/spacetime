@@ -4,7 +4,7 @@ channels:
   - pytorch
   - huggingface
 dependencies:
-  - python
+  - python=3.9
   - pip
   - jupyter
   - jupyterlab
@@ -19,3 +19,4 @@ dependencies:
   - tqdm
   - rich
   - wandb
+  #- timm=0.4.12
