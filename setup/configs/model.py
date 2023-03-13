@@ -80,11 +80,14 @@ def update_block_config_from_args(config, args):
                                     _config.kwargs.n_kernels * _config.kwargs.kernel_repeat)
 
     encoder_block.pre_config = update_preprocess_config_from_args(encoder_block.pre_config, args)
-    if args.replicate != 2 or args.input_dim > 1:
-        _config = encoder_block.ssm_config
-        _config.kwargs.head_dim = args.input_dim
+    # if args.input_dim > 1:  # Remember to comment out / git commit
+    _config = encoder_block.ssm_config
+    _config.kwargs.head_dim = args.input_dim
+    if args.model_dim is None:
         _config.kwargs.model_dim = (args.input_dim * _config.kwargs.n_heads *
                                     _config.kwargs.n_kernels * _config.kwargs.kernel_repeat)
+    else:
+        _config.kwargs.model_dim = args.model_dim
     encoder_block.mlp_config = update_mlp_config_from_args(encoder_block.mlp_config, args,
                                                            input_dim=_config.kwargs.model_dim if args.input_dim > 1 else None)
     

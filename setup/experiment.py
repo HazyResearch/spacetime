@@ -47,7 +47,7 @@ def initialize_experiment(args, experiment_name_id='',
         args.criterion_weights = '+'.join(args.criterion_weights)
     except:
         args.criterion_weights = '1+1+1'
-    for arg in ['embedding_config', 'preprocess_config', 'encoder_config', 'decoder_config', 'output_config', 
+    for arg in ['embedding_config', 'preprocess_config', 'encoder_config', 'decoder_config', 'output_config',
                 'n_blocks', 'n_kernels', 'n_heads', 'kernel_dim', 'kernel_init', 'norm_order', 'lag', 'horizon', 'features', 
                 'data_transform', 'criterion_weights', 'loss', 'dropout', 'lr', 'optimizer', 'scheduler', 
                 'weight_decay', 'batch_size', 'val_metric', 'max_epochs', 'early_stopping_epochs', 'replicate']:
