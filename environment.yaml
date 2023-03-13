@@ -10,6 +10,7 @@ dependencies:
   - jupyterlab
   - pytorch
   - transformers
+  - timm=0.4.12
   - pandas
   - numpy
   - matplotlib
