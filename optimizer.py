@@ -18,10 +18,7 @@ def get_scheduler(model, optimizer, configs):
     if 'scheduler' in configs:
         configs = configs['scheduler']
     scheduler_configs = {k: v for k, v in configs.items() if k != '_name_'}
-    if configs['_name_'] == 'timm_cosine':
-        from timm.scheduler.cosine_lr import CosineLRScheduler
-        return CosineLRScheduler(optimizer=optimizer, **scheduler_configs)
-    elif configs['_name_'] == 'plateau':
+    if configs['_name_'] == 'plateau':
         from torch.optim.lr_scheduler import ReduceLROnPlateau
         print(scheduler_configs)
         try:
