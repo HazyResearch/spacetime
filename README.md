@@ -1,13 +1,17 @@
 # SpaceTime 🌌⏱️
+
 Code for SpaceTime, a neural net for time series. Inspired by state-**space**s for **time** series modeling.
 
 Cousin of S4, S4D, DSS, and H3. Descendent of LSSL. Expressive autoregressive modeling + fast flexible decoding (forecasting) ftw. 
 
-Proposed in Effectively Modeling Time Series with Simple Discrete State Spaces, ICLR 2023. Paper links:     
-* [ArXiv]()   
-* [OpenReview](https://openreview.net/forum?id=2EpjkjzdCAa&referrer=%5BAuthor%20Console%5D(%2Fgroup%3Fid%3DICLR.cc%2F2023%2FConference%2FAuthors%23your-submissions))  
+Proposed in Effectively Modeling Time Series with Simple Discrete State Spaces, ICLR 2023. 
 
 <img src="assets/overview_fig.png" alt="spacetime" width="750"/>
+
+
+Paper links:     
+* [ArXiv]()   
+* [OpenReview](https://openreview.net/forum?id=2EpjkjzdCAa&referrer=%5BAuthor%20Console%5D(%2Fgroup%3Fid%3DICLR.cc%2F2023%2FConference%2FAuthors%23your-submissions))  
 
 
 ## Setup
