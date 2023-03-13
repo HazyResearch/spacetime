@@ -155,7 +155,7 @@ def main():
                                                  output_transform=output_transform,
                                                  val_metric=args.val_metric, wandb=wandb,
                                                  train=False)
-    n_plots = len(splits) # train, val, test + freq. response
+    n_plots = len(splits) # train, val, test
     fig, axes = plt.subplots(1, n_plots, figsize=(6.4 * n_plots, 4.8))
     
     plot_forecasts(total_y, splits=eval_splits, axes=axes)
