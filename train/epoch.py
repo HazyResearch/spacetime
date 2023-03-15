@@ -69,6 +69,7 @@ def save_checkpoint(model, optimizer, config, epoch, split,
                         'state_dict': model.state_dict(),
                         'optimizer_state_dict': optimizer.state_dict()
                        }, checkpoint_path)
-            print(f'-> New best {split} {val_metric} at epoch {epoch}! ({split} {val_metric}: {run_val_metric:.4f})')
+            if split == 'val':
+                print(f'-> New best {split} {val_metric} at epoch {epoch}! ({split} {val_metric}: {run_val_metric:.4f})')
     except Exception as e:
         print(e)
