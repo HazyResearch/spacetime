@@ -69,10 +69,13 @@ def shared_step(model, dataloader, optimizer, scheduler, criterions, epoch,
             y_c, y_o = y_pred 
             y_t = torch.cat([x, y], dim=1)  # Supervise all time-steps
             
-            
+            # config.criterion_weights specifies relative contribution for each loss component
+            # - w0 weights loss over model predictions for horizon (future) terms
+            # - w1 weights loss over model predictions for lag (historical) terms
+            # - w2 weights loss over closed-loop layer predictions for that layer's next time-step inputs
+            w0, w1, w2 = config.criterion_weights
             
             # Closed-loop supervision
-            w0, w1, w2 = config.criterion_weights
             loss = torch.mean(w0 * criterions[config.loss](
                 y_c, y_t[:, model.lag:, :].to(config.device)))
 
