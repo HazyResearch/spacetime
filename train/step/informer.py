@@ -2,6 +2,7 @@ import torch
 from tqdm import tqdm
 
 from loss import get_loss
+from utils.logging import type_of_script
 
 
 def compute_informer_metrics(y_pred, y_true):
@@ -47,7 +48,10 @@ def shared_step(model, dataloader, optimizer, scheduler, criterions, epoch,
         
     with torch.set_grad_enabled(grad_enabled):
         
-        pbar = tqdm(dataloader, leave=False)
+        if type_of_script() == 'terminal':
+            pbar = tqdm(dataloader, leave=False) 
+        else:
+            pbar = dataloader
         model.to(config.device)
         
         for batch_ix, data in enumerate(pbar):
@@ -120,7 +124,8 @@ def shared_step(model, dataloader, optimizer, scheduler, criterions, epoch,
                     description += f' | {metric_name}: {metric / (batch_ix + 1):.3f}'
                 elif metric_name != 'total':
                     description += f' | {metric_name}: {metric / metrics["total"]:.3f}'
-            pbar.set_description(description)
+            if type_of_script() == 'terminal':
+                pbar.set_description(description)
             
             try:
                 y_o = y_o.detach().cpu()

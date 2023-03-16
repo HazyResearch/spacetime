@@ -51,7 +51,10 @@ def initialize_experiment(args, experiment_name_id='',
                 'n_blocks', 'n_kernels', 'n_heads', 'kernel_dim', 'kernel_init', 'norm_order', 'lag', 'horizon', 'features', 
                 'data_transform', 'criterion_weights', 'loss', 'dropout', 'lr', 'optimizer', 'scheduler', 
                 'weight_decay', 'batch_size', 'val_metric', 'max_epochs', 'early_stopping_epochs', 'replicate']:
-        args.experiment_name += f'-{format_arg(arg)}={format_arg(getattr(args, arg), cutoff=None)}'
+        try:
+            args.experiment_name += f'-{format_arg(arg)}={format_arg(getattr(args, arg), cutoff=None)}'
+        except:
+            pass
     args.experiment_name += f'-se={args.seed}'
     args.experiment_name = args.experiment_name.replace('True', '1').replace('False', '0').replace('None', 'na').replace(
         'normal', 'no').replace('xavier', 'xa').replace('identity', 'id').replace('avgpool', 'avgp')

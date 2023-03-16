@@ -4,6 +4,8 @@ Shared functions called during each epoch
 import importlib
 import torch
 
+from utils.logging import type_of_script
+
 
 def initialize_shared_step(config):
     step_module = importlib.import_module(f'train.step.{config.dataset_type}')
@@ -20,13 +22,6 @@ def run_epoch(model, dataloaders, optimizer, scheduler, criterions,
     
     
     for split, dataloader in dataloaders.items():
-        try:
-            mean = dataloader.dataset.standardization['means'][0]
-            std  = dataloader.dataset.standardization['stds'][0]
-        except AttributeError:
-            mean = 0.
-            std = 1.
-        
         model, _metrics, y = shared_step(model, dataloader, optimizer, scheduler, 
                                          criterions, epoch, config, split, 
                                          input_transform=input_transform,
@@ -69,7 +64,7 @@ def save_checkpoint(model, optimizer, config, epoch, split,
                         'state_dict': model.state_dict(),
                         'optimizer_state_dict': optimizer.state_dict()
                        }, checkpoint_path)
-            if split == 'val':
+            if split == 'val' and type_of_script() == 'terminal':
                 print(f'-> New best {split} {val_metric} at epoch {epoch}! ({split} {val_metric}: {run_val_metric:.4f})')
     except Exception as e:
         print(e)
