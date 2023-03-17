@@ -1,8 +1,8 @@
 # SpaceTime 🌌⏱️
 
-Code for SpaceTime, a neural net for time series. Inspired by state-**space**s for **time** series modeling.
+Code for SpaceTime, a neural net architecture for time series. Named after state-**space** models for **time** series forecasting and classification.
 
-Cousin of S4, S4D, DSS, and H3. Descendent of LSSL. Expressive autoregressive modeling + fast flexible decoding (forecasting) ftw. 
+Cousin of S4, S4D, DSS, and H3. Descendent of LSSL. Expressive autoregressive modeling + fast flexible decoding (i.e., forecasting) ftw. 
 
 Proposed in Effectively Modeling Time Series with Simple Discrete State Spaces, ICLR 2023. 
 
@@ -10,8 +10,8 @@ Proposed in Effectively Modeling Time Series with Simple Discrete State Spaces, 
 
 
 Paper links:     
-* [ArXiv]()   
-* [OpenReview](https://openreview.net/forum?id=2EpjkjzdCAa&referrer=%5BAuthor%20Console%5D(%2Fgroup%3Fid%3DICLR.cc%2F2023%2FConference%2FAuthors%23your-submissions))  
+* [ArXiv](https://arxiv.org/abs/2303.09489)   
+* [OpenReview](https://openreview.net/forum?id=2EpjkjzdCAa)  
 
 
 ## Setup
@@ -32,7 +32,12 @@ Data for the Informer benchmark can be downloaded from [https://github.com/zhouh
 ./dataloaders/data/informer/ettm/ETTm2.csv
 ```
 
-## Training scripts
+## Usage
+
+### Colab demo
+We include an [example Colab notebook](https://colab.research.google.com/drive/1dyR7ZGnjNfS2GMjRUfDzujQLhxSo-Xsk?usp=sharing) walking through how to train and forecast a SpaceTime model on financial time series. For fun, we also provide a quick demo on how to power a trading bot with SpaceTime forecasts (probably with some bugs). Feel free to extend it and have fun. *None of this is financial advice!*
+
+### Training scripts
 Sample scripts for training models on the Informer benchmark are provided below. For a complete set of arguments, please see `./setup/args.py`. For an overview of key command-line arguments, please see the `Experiment arguments` section below.
 
 ```
